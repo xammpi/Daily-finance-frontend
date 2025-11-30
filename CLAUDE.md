@@ -116,17 +116,47 @@ src/
 - `src/routes/ProtectedRoute.tsx` - Route guard requiring authentication
 - `src/types/index.ts` - TypeScript interfaces matching backend API models
 
+### Authentication TypeScript Interfaces
+
+```typescript
+export interface User {
+  id: number
+  username: string
+  email: string
+}
+
+export interface LoginRequest {
+  username: string
+  password: string
+}
+
+export interface RegisterRequest {
+  username: string
+  email: string
+  password: string
+}
+
+export interface AuthResponse {
+  token: string
+  user: User
+}
+```
+
+**Note:** The backend requires `username` for login (not email). Registration requires both `username` and `email`.
+
 ### Backend API Integration
 
 **Base URL:** `http://localhost:8080/api/v1` (configurable via environment variables)
 
 **Authentication Flow:**
-1. User submits login credentials
-2. Frontend sends POST to `/auth/login`
-3. Backend returns JWT token
+1. User submits login credentials (username and password)
+2. Frontend sends POST to `/auth/login` with `{ username, password }`
+3. Backend returns JWT token and user data
 4. Frontend stores token (localStorage/sessionStorage/cookies)
 5. All subsequent requests include `Authorization: Bearer {token}` header
 6. On 401 response, redirect to login page
+
+**Important:** Backend expects `username` (not email) for login. Registration requires both `username` and `email`.
 
 **Available API Endpoints:**
 
@@ -275,6 +305,7 @@ VITE_ENABLE_ANALYTICS=false
 - ✅ Create protected route wrapper (src/routes/ProtectedRoute.tsx)
 - ✅ Setup global state management (Zustand for auth)
 - ✅ Basic Dashboard page with placeholder cards
+- ✅ Fix authentication to use username field (matches backend API)
 
 ### Phase 2: Core Features 🚧 (Next Steps)
 - [ ] Transaction list view (with pagination, sorting, filtering)
@@ -311,9 +342,23 @@ VITE_ENABLE_ANALYTICS=false
 
 ### Login Example
 ```typescript
-const login = async (email: string, password: string) => {
-  const response = await apiClient.post('/auth/login', { email, password });
-  const { token } = response.data;
+const login = async (username: string, password: string) => {
+  const response = await apiClient.post('/auth/login', { username, password });
+  const { token, user } = response.data;
+  localStorage.setItem('accessToken', token);
+  return response.data;
+};
+```
+
+### Register Example
+```typescript
+const register = async (username: string, email: string, password: string) => {
+  const response = await apiClient.post('/auth/register', {
+    username,
+    email,
+    password
+  });
+  const { token, user } = response.data;
   localStorage.setItem('accessToken', token);
   return response.data;
 };
