@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 
 export default function RegisterPage() {
-  const [name, setName] = useState('')
+  const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -27,7 +27,7 @@ export default function RegisterPage() {
     }
 
     try {
-      await register({ name, email, password })
+      await register({ username, email, password })
       navigate('/dashboard')
     } catch (err) {
       // Error is handled by the store
@@ -50,17 +50,17 @@ export default function RegisterPage() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-              Full Name
+            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
+              Username
             </label>
             <input
-              id="name"
+              id="username"
               type="text"
               required
-              value={name}
-              onChange={e => setName(e.target.value)}
+              value={username}
+              onChange={e => setUsername(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              placeholder="John Doe"
+              placeholder="Enter your username"
             />
           </div>
 
