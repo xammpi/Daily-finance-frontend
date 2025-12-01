@@ -8,7 +8,13 @@
       "Bash(npm run dev:*)",
       "Bash(xargs:*)",
       "Bash(git checkout:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git pull:*)",
+      "Bash(gh repo edit:*)",
+      "Bash(git remote set-head:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(gh pr create:*)"
     ],
     "deny": [],
     "ask": []
