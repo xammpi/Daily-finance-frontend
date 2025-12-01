@@ -26,10 +26,15 @@ export const useAuthStore = create<AuthState>(set => ({
     set({ isLoading: true, error: null })
     try {
       const response = await authApi.login(data)
-      localStorage.setItem('accessToken', response.token)
+      localStorage.setItem('accessToken', response.accessToken)
+      const user: User = {
+        id: response.userId,
+        username: response.username,
+        email: '', // Email not returned in auth response
+      }
       set({
-        user: response.user,
-        token: response.token,
+        user,
+        token: response.accessToken,
         isAuthenticated: true,
         isLoading: false,
       })
@@ -45,10 +50,15 @@ export const useAuthStore = create<AuthState>(set => ({
     set({ isLoading: true, error: null })
     try {
       const response = await authApi.register(data)
-      localStorage.setItem('accessToken', response.token)
+      localStorage.setItem('accessToken', response.accessToken)
+      const user: User = {
+        id: response.userId,
+        username: response.username,
+        email: data.email, // Use email from registration form
+      }
       set({
-        user: response.user,
-        token: response.token,
+        user,
+        token: response.accessToken,
         isAuthenticated: true,
         isLoading: false,
       })

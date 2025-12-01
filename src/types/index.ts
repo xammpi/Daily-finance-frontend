@@ -16,8 +16,11 @@ export interface RegisterRequest {
 }
 
 export interface AuthResponse {
-  token: string
-  user: User
+  accessToken: string
+  refreshToken: string
+  tokenType: string
+  userId: number
+  username: string
 }
 
 export interface Transaction {
@@ -26,7 +29,7 @@ export interface Transaction {
   type: 'INCOME' | 'EXPENSE'
   date: string
   description: string
-  accountId: number
+  notes?: string
   categoryId: number
   userId: number
   createdAt: string
@@ -36,17 +39,7 @@ export interface Transaction {
 export interface Category {
   id: number
   name: string
-  type: 'INCOME' | 'EXPENSE'
-  parentId?: number
-  userId: number
-}
-
-export interface Account {
-  id: number
-  name: string
-  type: string
-  balance: number
-  currency: string
+  description?: string
   userId: number
 }
 
