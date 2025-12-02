@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
-import { transactionsApi } from '@/api/transactions'
-import type { Transaction, PaginatedResponse } from '@/types'
+import { expensesApi } from '@/api/expenses'
+import { userApi } from '@/api/user'
+import type { Expense, BalanceSummary } from '@/types'
 
 export default function DashboardPage() {
   const { user, logout } = useAuth()
-  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [expenses, setExpenses] = useState<Expense[]>([])
+  const [balanceSummary, setBalanceSummary] = useState<BalanceSummary | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -16,8 +18,13 @@ export default function DashboardPage() {
   const fetchDashboardData = async () => {
     try {
       setIsLoading(true)
-      const transactionsResponse = await transactionsApi.getAll({ page: 0, size: 5, sort: 'date,desc' })
-      setTransactions((transactionsResponse as PaginatedResponse<Transaction>).content)
+      const [expensesData, summary] = await Promise.all([
+        expensesApi.getAll(),
+        userApi.getBalanceSummary(),
+      ])
+      // Get only the 5 most recent expenses
+      setExpenses(expensesData.slice(0, 5))
+      setBalanceSummary(summary)
     } catch (err) {
       console.error('Failed to fetch dashboard data:', err)
     } finally {
@@ -25,26 +32,10 @@ export default function DashboardPage() {
     }
   }
 
-  const getMonthlyIncome = () => {
-    const now = new Date()
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-    return transactions
-      .filter(t => t.type === 'INCOME' && new Date(t.date) >= startOfMonth)
-      .reduce((total, t) => total + t.amount, 0)
-  }
-
-  const getMonthlyExpenses = () => {
-    const now = new Date()
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-    return transactions
-      .filter(t => t.type === 'EXPENSE' && new Date(t.date) >= startOfMonth)
-      .reduce((total, t) => total + t.amount, 0)
-  }
-
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: number, currency: string = 'USD') => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD',
+      currency: currency,
     }).format(amount)
   }
 
@@ -74,24 +65,33 @@ export default function DashboardPage() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          <Link
-            to="/transactions"
-            className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
-          >
-            <h3 className="text-gray-500 text-sm font-medium">Monthly Income</h3>
-            <p className="text-3xl font-bold text-green-600 mt-2">
-              {isLoading ? '...' : formatCurrency(getMonthlyIncome())}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-gray-500 text-sm font-medium">Current Balance</h3>
+            <p className="text-3xl font-bold text-gray-900 mt-2">
+              {isLoading
+                ? '...'
+                : formatCurrency(
+                    balanceSummary?.currentBalance || 0,
+                    balanceSummary?.currency || 'USD'
+                  )}
             </p>
-            <p className="text-xs text-gray-500 mt-2">This month</p>
-          </Link>
+            <p className="text-xs text-gray-500 mt-2">
+              {balanceSummary?.currency || 'USD'}
+            </p>
+          </div>
 
           <Link
-            to="/transactions"
+            to="/expenses"
             className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
           >
             <h3 className="text-gray-500 text-sm font-medium">Monthly Expenses</h3>
             <p className="text-3xl font-bold text-red-600 mt-2">
-              {isLoading ? '...' : formatCurrency(getMonthlyExpenses())}
+              {isLoading
+                ? '...'
+                : formatCurrency(
+                    balanceSummary?.totalExpensesThisMonth || 0,
+                    balanceSummary?.currency || 'USD'
+                  )}
             </p>
             <p className="text-xs text-gray-500 mt-2">This month</p>
           </Link>
@@ -115,9 +115,9 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <div className="lg:col-span-2 bg-white rounded-lg shadow p-6">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-gray-900">Recent Transactions</h2>
+              <h2 className="text-xl font-semibold text-gray-900">Recent Expenses</h2>
               <Link
-                to="/transactions"
+                to="/expenses"
                 className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
               >
                 View All
@@ -125,51 +125,38 @@ export default function DashboardPage() {
             </div>
             {isLoading ? (
               <div className="text-center py-8 text-gray-500">Loading...</div>
-            ) : transactions.length === 0 ? (
+            ) : expenses.length === 0 ? (
               <div className="text-center py-8">
-                <p className="text-gray-500 mb-4">No transactions yet</p>
+                <p className="text-gray-500 mb-4">No expenses yet</p>
                 <Link
-                  to="/transactions/new"
+                  to="/expenses/new"
                   className="inline-block bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors"
                 >
-                  Add Transaction
+                  Add Expense
                 </Link>
               </div>
             ) : (
               <div className="space-y-3">
-                {transactions.map(transaction => (
+                {expenses.map(expense => (
                   <div
-                    key={transaction.id}
+                    key={expense.id}
                     className="flex justify-between items-center p-3 hover:bg-gray-50 rounded-md"
                   >
                     <div className="flex items-center space-x-3">
-                      <div
-                        className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                          transaction.type === 'INCOME' ? 'bg-green-100' : 'bg-red-100'
-                        }`}
-                      >
-                        <span
-                          className={`text-lg ${
-                            transaction.type === 'INCOME' ? 'text-green-600' : 'text-red-600'
-                          }`}
-                        >
-                          {transaction.type === 'INCOME' ? '↑' : '↓'}
-                        </span>
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center bg-red-100">
+                        <span className="text-lg text-red-600">↓</span>
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-900">
-                          {transaction.description}
+                          {expense.description}
                         </p>
-                        <p className="text-xs text-gray-500">{formatDate(transaction.date)}</p>
+                        <p className="text-xs text-gray-500">
+                          {formatDate(expense.date)} • {expense.categoryName}
+                        </p>
                       </div>
                     </div>
-                    <span
-                      className={`text-sm font-semibold ${
-                        transaction.type === 'INCOME' ? 'text-green-600' : 'text-red-600'
-                      }`}
-                    >
-                      {transaction.type === 'INCOME' ? '+' : '-'}
-                      {formatCurrency(transaction.amount)}
+                    <span className="text-sm font-semibold text-red-600">
+                      -{formatCurrency(expense.amount, balanceSummary?.currency || 'USD')}
                     </span>
                   </div>
                 ))}
@@ -181,11 +168,18 @@ export default function DashboardPage() {
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Links</h2>
             <div className="space-y-3">
               <Link
-                to="/transactions/new"
+                to="/expenses/new"
                 className="block p-3 bg-indigo-50 text-indigo-700 rounded-md hover:bg-indigo-100 transition-colors"
               >
-                <div className="font-medium">New Transaction</div>
-                <div className="text-xs text-indigo-600">Record income or expense</div>
+                <div className="font-medium">New Expense</div>
+                <div className="text-xs text-indigo-600">Record an expense</div>
+              </Link>
+              <Link
+                to="/deposit"
+                className="block p-3 bg-green-50 text-green-700 rounded-md hover:bg-green-100 transition-colors"
+              >
+                <div className="font-medium">Deposit Money</div>
+                <div className="text-xs text-green-600">Add funds to balance</div>
               </Link>
               <Link
                 to="/categories/new"

@@ -2,6 +2,10 @@ export interface User {
   id: number
   username: string
   email: string
+  firstName: string
+  lastName: string
+  balance: number
+  currency: string
 }
 
 export interface LoginRequest {
@@ -10,9 +14,11 @@ export interface LoginRequest {
 }
 
 export interface RegisterRequest {
-  username: string
   email: string
+  username: string
   password: string
+  firstName: string
+  lastName: string
 }
 
 export interface AuthResponse {
@@ -23,24 +29,37 @@ export interface AuthResponse {
   username: string
 }
 
-export interface Transaction {
+export interface Expense {
   id: number
   amount: number
-  type: 'INCOME' | 'EXPENSE'
   date: string
   description: string
-  notes?: string
   categoryId: number
-  userId: number
-  createdAt: string
-  updatedAt: string
+  categoryName: string
+}
+
+export interface ExpenseRequest {
+  amount: number
+  date: string
+  description: string
+  categoryId: number
 }
 
 export interface Category {
   id: number
   name: string
   description?: string
-  userId: number
+}
+
+export interface BalanceSummary {
+  currentBalance: number
+  totalExpensesThisMonth: number
+  remainingBalance: number
+  currency: string
+}
+
+export interface DepositRequest {
+  amount: number
 }
 
 export interface PaginatedResponse<T> {
