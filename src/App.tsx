@@ -2,10 +2,11 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import LoginPage from '@/features/auth/LoginPage'
 import RegisterPage from '@/features/auth/RegisterPage'
 import DashboardPage from '@/features/dashboard/DashboardPage'
-import TransactionListPage from '@/features/transactions/TransactionListPage'
-import TransactionFormPage from '@/features/transactions/TransactionFormPage'
+import ExpenseListPage from '@/features/expenses/ExpenseListPage'
+import ExpenseFormPage from '@/features/expenses/ExpenseFormPage'
 import CategoryListPage from '@/features/categories/CategoryListPage'
 import CategoryFormPage from '@/features/categories/CategoryFormPage'
+import DepositPage from '@/features/deposit/DepositPage'
 import ProtectedRoute from '@/routes/ProtectedRoute'
 
 function App() {
@@ -25,26 +26,35 @@ function App() {
         />
 
         <Route
-          path="/transactions"
+          path="/expenses"
           element={
             <ProtectedRoute>
-              <TransactionListPage />
+              <ExpenseListPage />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/transactions/new"
+          path="/expenses/new"
           element={
             <ProtectedRoute>
-              <TransactionFormPage />
+              <ExpenseFormPage />
             </ProtectedRoute>
           }
         />
         <Route
-          path="/transactions/:id/edit"
+          path="/expenses/:id/edit"
           element={
             <ProtectedRoute>
-              <TransactionFormPage />
+              <ExpenseFormPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/deposit"
+          element={
+            <ProtectedRoute>
+              <DepositPage />
             </ProtectedRoute>
           }
         />
