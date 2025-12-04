@@ -1,6 +1,8 @@
 import { useState, useEffect, FormEvent } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
+import { ArrowLeft, Tag, Save } from 'lucide-react'
 import { categoriesApi } from '@/api/categories'
+import Layout from '@/components/Layout'
 import type { Category } from '@/types'
 
 export default function CategoryFormPage() {
@@ -29,7 +31,7 @@ export default function CategoryFormPage() {
         setDescription(category.description || '')
       }
     } catch (err) {
-      setError('Failed to load data')
+      setError('Failed to load category data')
       console.error(err)
     } finally {
       setIsFetching(false)
@@ -63,79 +65,102 @@ export default function CategoryFormPage() {
 
   if (isFetching) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-gray-600">Loading...</div>
-      </div>
+      <Layout>
+        <div className="flex h-[60vh] items-center justify-center">
+          <div className="text-center">
+            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-indigo-600" />
+            <p className="text-slate-600">Loading category...</p>
+          </div>
+        </div>
+      </Layout>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">
-            {isEditMode ? 'Edit Category' : 'New Category'}
-          </h1>
-          <p className="text-gray-600 mt-1">
-            {isEditMode
-              ? 'Update category details'
-              : 'Create a new category for organizing transactions'}
-          </p>
+    <Layout>
+      <div className="mx-auto max-w-2xl space-y-6">
+        {/* Back Button */}
+        <Link
+          to="/categories"
+          className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Categories
+        </Link>
+
+        {/* Header */}
+        <div className="flex items-start gap-4">
+          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 shadow-lg">
+            <Tag className="h-7 w-7 text-white" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900">
+              {isEditMode ? 'Edit Category' : 'New Category'}
+            </h1>
+            <p className="mt-1 text-slate-600">
+              {isEditMode
+                ? 'Update your category details'
+                : 'Create a new category to organize your expenses'}
+            </p>
+          </div>
         </div>
 
+        {/* Error Message */}
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-md">
-            {error}
+          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
+            <p className="font-medium">{error}</p>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="bg-white shadow rounded-lg p-6 space-y-6">
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-6 rounded-2xl bg-white p-8 shadow-lg">
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-              Category Name
+            <label htmlFor="name" className="mb-2 block text-sm font-semibold text-slate-700">
+              Category Name <span className="text-red-500">*</span>
             </label>
             <input
               id="name"
               type="text"
               required
               value={name}
-              onChange={e => setName(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              placeholder="e.g., Groceries, Salary, Utilities"
+              onChange={(e) => setName(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 transition-all focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              placeholder="e.g., Groceries, Transportation, Entertainment"
             />
           </div>
 
           <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="description" className="mb-2 block text-sm font-semibold text-slate-700">
               Description (Optional)
             </label>
             <textarea
               id="description"
               value={description}
-              onChange={e => setDescription(e.target.value)}
-              rows={3}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              placeholder="Add a description for this category..."
+              onChange={(e) => setDescription(e.target.value)}
+              rows={4}
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 transition-all focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              placeholder="Add a brief description for this category..."
             />
           </div>
 
-          <div className="flex space-x-4 pt-4">
+          <div className="flex gap-3 pt-4">
             <button
               type="submit"
               disabled={isLoading}
-              className="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-3 font-medium text-white shadow-lg transition-all hover:scale-105 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
             >
+              <Save className="h-5 w-5" />
               {isLoading ? 'Saving...' : isEditMode ? 'Update Category' : 'Create Category'}
             </button>
             <Link
               to="/categories"
-              className="flex-1 bg-gray-200 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-300 text-center transition-colors"
+              className="flex flex-1 items-center justify-center rounded-xl border border-slate-200 bg-white px-6 py-3 font-medium text-slate-700 transition-colors hover:bg-slate-50"
             >
               Cancel
             </Link>
           </div>
         </form>
       </div>
-    </div>
+    </Layout>
   )
 }

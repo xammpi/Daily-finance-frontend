@@ -1,15 +1,25 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useAuth } from '@/hooks/useAuth'
+import {
+  Wallet,
+  TrendingDown,
+  TrendingUp,
+  Calendar,
+  ArrowRight,
+  Plus,
+  Receipt
+} from 'lucide-react'
 import { expensesApi } from '@/api/expenses'
-import { userApi } from '@/api/user'
-import type { Expense, BalanceSummary } from '@/types'
+import { statisticsApi } from '@/api/statistics'
+import Layout from '@/components/Layout'
+import ExpenseModal from '@/components/ExpenseModal'
+import type { Expense, StatisticsResponse } from '@/types'
 
 export default function DashboardPage() {
-  const { user, logout } = useAuth()
   const [expenses, setExpenses] = useState<Expense[]>([])
-  const [balanceSummary, setBalanceSummary] = useState<BalanceSummary | null>(null)
+  const [statistics, setStatistics] = useState<StatisticsResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   useEffect(() => {
     fetchDashboardData()
@@ -18,13 +28,12 @@ export default function DashboardPage() {
   const fetchDashboardData = async () => {
     try {
       setIsLoading(true)
-      const [expensesData, summary] = await Promise.all([
+      const [expensesData, stats] = await Promise.all([
         expensesApi.getAll(),
-        userApi.getBalanceSummary(),
+        statisticsApi.getOverall(),
       ])
-      // Get only the 5 most recent expenses
       setExpenses(expensesData.slice(0, 5))
-      setBalanceSummary(summary)
+      setStatistics(stats)
     } catch (err) {
       console.error('Failed to fetch dashboard data:', err)
     } finally {
@@ -46,152 +55,183 @@ export default function DashboardPage() {
     })
   }
 
+  const handleOpenModal = () => {
+    setIsModalOpen(true)
+  }
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false)
+  }
+
+  const handleModalSuccess = () => {
+    fetchDashboardData()
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          <div className="flex items-center gap-4">
-            <span className="text-gray-700">Welcome, {user?.username || user?.email}</span>
-            <button
-              onClick={logout}
-              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
-            >
-              Logout
-            </button>
-          </div>
+    <Layout onAddExpense={handleOpenModal}>
+      <div className="space-y-6">
+        {/* Header */}
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900">Welcome back! 👋</h1>
+          <p className="mt-1 text-slate-600">Here's what's happening with your money</p>
         </div>
-      </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-gray-500 text-sm font-medium">Current Balance</h3>
-            <p className="text-3xl font-bold text-gray-900 mt-2">
-              {isLoading
-                ? '...'
-                : formatCurrency(
-                    balanceSummary?.currentBalance || 0,
-                    balanceSummary?.currency || 'USD'
-                  )}
-            </p>
-            <p className="text-xs text-gray-500 mt-2">
-              {balanceSummary?.currency || 'USD'}
-            </p>
+        {/* Stats Cards */}
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {/* Balance Card */}
+          <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 p-6 text-white shadow-lg transition-transform hover:scale-105">
+            <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-white/10" />
+            <div className="relative">
+              <div className="mb-4 flex items-center gap-2">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/20">
+                  <Wallet className="h-5 w-5" />
+                </div>
+                <span className="text-sm font-medium opacity-90">Current Balance</span>
+              </div>
+              <p className="text-4xl font-bold">
+                {isLoading
+                  ? '...'
+                  : formatCurrency(
+                      statistics?.currentBalance || 0,
+                      statistics?.currency?.code || 'USD'
+                    )}
+              </p>
+              <p className="mt-2 text-sm opacity-75">{statistics?.currency?.code || 'USD'}</p>
+            </div>
           </div>
 
+          {/* Monthly Expenses Card */}
           <Link
             to="/expenses"
-            className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
+            className="group relative overflow-hidden rounded-2xl bg-white p-6 shadow-lg transition-all hover:shadow-xl"
           >
-            <h3 className="text-gray-500 text-sm font-medium">Monthly Expenses</h3>
-            <p className="text-3xl font-bold text-red-600 mt-2">
-              {isLoading
-                ? '...'
-                : formatCurrency(
-                    balanceSummary?.totalExpensesThisMonth || 0,
-                    balanceSummary?.currency || 'USD'
-                  )}
-            </p>
-            <p className="text-xs text-gray-500 mt-2">This month</p>
+            <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-red-50" />
+            <div className="relative">
+              <div className="mb-4 flex items-center gap-2">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100">
+                  <TrendingDown className="h-5 w-5 text-red-600" />
+                </div>
+                <span className="text-sm font-medium text-slate-600">This Month</span>
+              </div>
+              <p className="text-3xl font-bold text-slate-900">
+                {isLoading
+                  ? '...'
+                  : formatCurrency(
+                      statistics?.totalExpensesThisMonth || 0,
+                      statistics?.currency?.code || 'USD'
+                    )}
+              </p>
+              <p className="mt-2 text-sm text-slate-500">Total expenses</p>
+            </div>
           </Link>
 
+          {/* Total Deposits This Month Card */}
           <Link
-            to="/categories"
-            className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
+            to="/deposit"
+            className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 p-6 text-white shadow-lg transition-all hover:shadow-xl"
           >
-            <h3 className="text-gray-500 text-sm font-medium">Quick Actions</h3>
-            <div className="mt-3 space-y-2">
-              <div className="text-sm text-indigo-600 hover:text-indigo-700">
-                → Manage Categories
+            <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-white/10" />
+            <div className="relative">
+              <div className="mb-4 flex items-center gap-2">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/20">
+                  <TrendingUp className="h-5 w-5" />
+                </div>
+                <span className="text-sm font-medium opacity-90">Deposits This Month</span>
               </div>
-              <div className="text-sm text-indigo-600 hover:text-indigo-700">
-                → View Reports
-              </div>
+              <p className="text-3xl font-bold">
+                {isLoading
+                  ? '...'
+                  : formatCurrency(
+                      statistics?.totalDepositsThisMonth || 0,
+                      statistics?.currency?.code || 'USD'
+                    )}
+              </p>
+              <p className="mt-2 text-sm opacity-75">Total deposits</p>
             </div>
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          <div className="lg:col-span-2 bg-white rounded-lg shadow p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-gray-900">Recent Expenses</h2>
-              <Link
-                to="/expenses"
-                className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
-              >
-                View All
-              </Link>
-            </div>
-            {isLoading ? (
-              <div className="text-center py-8 text-gray-500">Loading...</div>
-            ) : expenses.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-gray-500 mb-4">No expenses yet</p>
-                <Link
-                  to="/expenses/new"
-                  className="inline-block bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors"
-                >
-                  Add Expense
-                </Link>
+        {/* Recent Expenses */}
+        <div className="rounded-2xl bg-white p-6 shadow-lg">
+          <div className="mb-6 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-100">
+                <Receipt className="h-5 w-5 text-indigo-600" />
               </div>
-            ) : (
-              <div className="space-y-3">
-                {expenses.map(expense => (
-                  <div
-                    key={expense.id}
-                    className="flex justify-between items-center p-3 hover:bg-gray-50 rounded-md"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 rounded-full flex items-center justify-center bg-red-100">
-                        <span className="text-lg text-red-600">↓</span>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">
-                          {expense.description}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {formatDate(expense.date)} • {expense.categoryName}
-                        </p>
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">Recent Expenses</h2>
+                <p className="text-sm text-slate-500">Your latest transactions</p>
+              </div>
+            </div>
+            <Link
+              to="/expenses"
+              className="flex items-center gap-1 text-sm font-medium text-indigo-600 transition-colors hover:text-indigo-700"
+            >
+              View All
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+
+          {isLoading ? (
+            <div className="py-12 text-center text-slate-500">Loading expenses...</div>
+          ) : expenses.length === 0 ? (
+            <div className="py-12 text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
+                <Receipt className="h-8 w-8 text-slate-400" />
+              </div>
+              <p className="mb-2 text-lg font-medium text-slate-900">No expenses yet</p>
+              <p className="mb-4 text-sm text-slate-500">
+                Start tracking your expenses to see them here
+              </p>
+              <button
+                onClick={handleOpenModal}
+                className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700"
+              >
+                <Plus className="h-4 w-4" />
+                Add Your First Expense
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {expenses.map((expense) => (
+                <div
+                  key={expense.id}
+                  className="group flex items-center justify-between rounded-xl border border-slate-100 p-4 transition-all hover:border-slate-200 hover:bg-slate-50"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-50">
+                      <TrendingDown className="h-5 w-5 text-red-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-slate-900">{expense.description}</p>
+                      <div className="flex items-center gap-2 text-sm text-slate-500">
+                        <Calendar className="h-3.5 w-3.5" />
+                        {formatDate(expense.date)}
+                        <span>•</span>
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium">
+                          {expense.categoryName}
+                        </span>
                       </div>
                     </div>
-                    <span className="text-sm font-semibold text-red-600">
-                      -{formatCurrency(expense.amount, balanceSummary?.currency || 'USD')}
-                    </span>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Links</h2>
-            <div className="space-y-3">
-              <Link
-                to="/expenses/new"
-                className="block p-3 bg-indigo-50 text-indigo-700 rounded-md hover:bg-indigo-100 transition-colors"
-              >
-                <div className="font-medium">New Expense</div>
-                <div className="text-xs text-indigo-600">Record an expense</div>
-              </Link>
-              <Link
-                to="/deposit"
-                className="block p-3 bg-green-50 text-green-700 rounded-md hover:bg-green-100 transition-colors"
-              >
-                <div className="font-medium">Deposit Money</div>
-                <div className="text-xs text-green-600">Add funds to balance</div>
-              </Link>
-              <Link
-                to="/categories/new"
-                className="block p-3 bg-purple-50 text-purple-700 rounded-md hover:bg-purple-100 transition-colors"
-              >
-                <div className="font-medium">New Category</div>
-                <div className="text-xs text-purple-600">Organize your spending</div>
-              </Link>
+                  <div className="text-right">
+                    <p className="text-lg font-bold text-red-600">
+                      -{formatCurrency(expense.amount, statistics?.currency?.code || 'USD')}
+                    </p>
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
+          )}
         </div>
-      </main>
-    </div>
+      </div>
+
+      {/* Expense Modal */}
+      <ExpenseModal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        onSuccess={handleModalSuccess}
+      />
+    </Layout>
   )
 }

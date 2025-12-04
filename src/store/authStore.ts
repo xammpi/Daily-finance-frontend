@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { authApi } from '@/api/auth'
+import { userApi } from '@/api/user'
 import type { User, LoginRequest, RegisterRequest } from '@/types'
 
 interface AuthState {
@@ -27,11 +28,10 @@ export const useAuthStore = create<AuthState>(set => ({
     try {
       const response = await authApi.login(data)
       localStorage.setItem('accessToken', response.accessToken)
-      const user: User = {
-        id: response.userId,
-        username: response.username,
-        email: '', // Email not returned in auth response
-      }
+
+      // Fetch full user profile (includes wallet with currency)
+      const user = await userApi.getProfile()
+
       set({
         user,
         token: response.accessToken,
@@ -51,11 +51,10 @@ export const useAuthStore = create<AuthState>(set => ({
     try {
       const response = await authApi.register(data)
       localStorage.setItem('accessToken', response.accessToken)
-      const user: User = {
-        id: response.userId,
-        username: response.username,
-        email: data.email, // Use email from registration form
-      }
+
+      // Fetch full user profile (includes wallet with selected currency)
+      const user = await userApi.getProfile()
+
       set({
         user,
         token: response.accessToken,

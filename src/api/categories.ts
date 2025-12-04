@@ -3,8 +3,7 @@ import type { Category } from '@/types'
 
 export interface CreateCategoryRequest {
   name: string
-  type: 'INCOME' | 'EXPENSE'
-  parentId?: number
+  description?: string
 }
 
 export const categoriesApi = {
