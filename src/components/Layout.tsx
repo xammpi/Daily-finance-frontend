@@ -4,7 +4,6 @@ import {
   LayoutDashboard,
   Receipt,
   FolderOpen,
-  PiggyBank,
   LogOut,
   Plus,
   Wallet
@@ -23,9 +22,9 @@ export default function Layout({ children, onAddExpense }: LayoutProps) {
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    { name: 'Wallet', href: '/wallet', icon: Wallet },
     { name: 'Expenses', href: '/expenses', icon: Receipt },
     { name: 'Categories', href: '/categories', icon: FolderOpen },
-    { name: 'Deposit', href: '/deposit', icon: PiggyBank },
   ]
 
   const isActive = (path: string) => location.pathname === path

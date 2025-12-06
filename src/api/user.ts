@@ -1,24 +1,54 @@
 import apiClient from './client'
-import type { User, BalanceSummary, DepositRequest } from '@/types'
+import type { User, Wallet, DepositRequest, WithdrawRequest, BalanceUpdateRequest, CurrencyUpdateRequest } from '@/types'
 
 export const userApi = {
+  /**
+   * Get user profile
+   * @returns User profile with currencyId
+   */
   async getProfile(): Promise<User> {
     const response = await apiClient.get<User>('/user/profile')
     return response.data
   },
 
-  async deposit(data: DepositRequest): Promise<User> {
-    const response = await apiClient.post<User>('/user/deposit', data)
+  /**
+   * Get wallet details including balance and statistics
+   * @returns Wallet with currency object and transaction stats
+   */
+  async getWallet(): Promise<Wallet> {
+    const response = await apiClient.get<Wallet>('/user/wallet')
     return response.data
   },
 
-  async getBalanceSummary(): Promise<BalanceSummary> {
-    const response = await apiClient.get<BalanceSummary>('/user/balance-summary')
-    return response.data
+  /**
+   * Deposit money into wallet
+   * @param data DepositRequest with amount
+   */
+  async deposit(data: DepositRequest): Promise<void> {
+    await apiClient.post('/user/deposit', data)
   },
 
-  async updateCurrency(currency: string): Promise<User> {
-    const response = await apiClient.put<User>(`/user/currency?currency=${currency}`)
-    return response.data
+  /**
+   * Withdraw money from wallet
+   * @param data WithdrawRequest with amount
+   */
+  async withdraw(data: WithdrawRequest): Promise<void> {
+    await apiClient.post('/user/withdraw', data)
+  },
+
+  /**
+   * Update wallet balance (set to specific amount)
+   * @param data BalanceUpdateRequest with amount
+   */
+  async updateBalance(data: BalanceUpdateRequest): Promise<void> {
+    await apiClient.put('/user/balance', data)
+  },
+
+  /**
+   * Update user's currency preference
+   * @param data CurrencyUpdateRequest with currencyId
+   */
+  async updateCurrency(data: CurrencyUpdateRequest): Promise<void> {
+    await apiClient.put('/user/currency', data)
   },
 }

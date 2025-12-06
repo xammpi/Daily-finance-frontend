@@ -3,21 +3,23 @@ import { Link } from 'react-router-dom'
 import {
   Wallet,
   TrendingDown,
-  TrendingUp,
   Calendar,
   ArrowRight,
   Plus,
-  Receipt
+  Receipt,
+  AlertCircle
 } from 'lucide-react'
 import { expensesApi } from '@/api/expenses'
-import { statisticsApi } from '@/api/statistics'
+import { useBalance } from '@/hooks/useBalance'
 import Layout from '@/components/Layout'
 import ExpenseModal from '@/components/ExpenseModal'
-import type { Expense, StatisticsResponse } from '@/types'
+import { formatCurrency, formatDateShort } from '@/utils'
+import type { Expense, ExpenseStatistics } from '@/types'
 
 export default function DashboardPage() {
+  const { wallet, refresh: refreshBalance, isLoading: isBalanceLoading } = useBalance()
   const [expenses, setExpenses] = useState<Expense[]>([])
-  const [statistics, setStatistics] = useState<StatisticsResponse | null>(null)
+  const [statistics, setStatistics] = useState<ExpenseStatistics | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
 
@@ -30,29 +32,13 @@ export default function DashboardPage() {
       setIsLoading(true)
       const [expensesData, stats] = await Promise.all([
         expensesApi.getAll(),
-        statisticsApi.getOverall(),
+        expensesApi.getStatistics(),
       ])
       setExpenses(expensesData.slice(0, 5))
       setStatistics(stats)
-    } catch (err) {
-      console.error('Failed to fetch dashboard data:', err)
-    } finally {
+    }  finally {
       setIsLoading(false)
     }
-  }
-
-  const formatCurrency = (amount: number, currency: string = 'USD') => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency,
-    }).format(amount)
-  }
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-    })
   }
 
   const handleOpenModal = () => {
@@ -63,8 +49,27 @@ export default function DashboardPage() {
     setIsModalOpen(false)
   }
 
-  const handleModalSuccess = () => {
-    fetchDashboardData()
+  const handleModalSuccess = async () => {
+    await Promise.all([
+      fetchDashboardData(),
+      refreshBalance()
+    ])
+  }
+
+  // Show loading state if either wallet or dashboard data is loading
+  const isPageLoading = isLoading || isBalanceLoading
+
+  if (isPageLoading) {
+    return (
+      <Layout>
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <div className="text-center">
+            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
+            <p className="text-slate-600">Loading dashboard...</p>
+          </div>
+        </div>
+      </Layout>
+    )
   }
 
   return (
@@ -76,8 +81,22 @@ export default function DashboardPage() {
           <p className="mt-1 text-slate-600">Here's what's happening with your money</p>
         </div>
 
+        {/* Low Balance Warning */}
+        {wallet?.lowBalanceWarning && (
+          <div className="flex items-start gap-3 rounded-xl border border-orange-200 bg-orange-50 p-4 text-orange-700">
+            <AlertCircle className="h-5 w-5 flex-shrink-0" />
+            <div>
+              <p className="font-medium">Low Balance Warning</p>
+              <p className="mt-1 text-sm text-orange-600">
+                Your balance is below {wallet.currency.symbol}100. Consider adding funds to continue
+                tracking expenses.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Stats Cards */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {/* Balance Card */}
           <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 p-6 text-white shadow-lg transition-transform hover:scale-105">
             <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-white/10" />
@@ -88,65 +107,94 @@ export default function DashboardPage() {
                 </div>
                 <span className="text-sm font-medium opacity-90">Current Balance</span>
               </div>
-              <p className="text-4xl font-bold">
+              <p className="text-3xl font-bold">
                 {isLoading
                   ? '...'
                   : formatCurrency(
-                      statistics?.currentBalance || 0,
-                      statistics?.currency?.code || 'USD'
+                      wallet?.currentBalance || 0,
+                      wallet?.currency?.code || 'USD'
                     )}
               </p>
-              <p className="mt-2 text-sm opacity-75">{statistics?.currency?.code || 'USD'}</p>
+              <p className="mt-2 text-xs opacity-75">
+                {wallet?.totalExpenses || 0} expenses • {wallet?.totalDeposits || 0} deposits
+              </p>
             </div>
           </div>
 
-          {/* Monthly Expenses Card */}
+          {/* Today Expenses Card */}
           <Link
             to="/expenses"
             className="group relative overflow-hidden rounded-2xl bg-white p-6 shadow-lg transition-all hover:shadow-xl"
           >
-            <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-red-50" />
+            <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-blue-50" />
             <div className="relative">
               <div className="mb-4 flex items-center gap-2">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100">
-                  <TrendingDown className="h-5 w-5 text-red-600" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
+                  <Calendar className="h-5 w-5 text-blue-600" />
                 </div>
-                <span className="text-sm font-medium text-slate-600">This Month</span>
+                <span className="text-sm font-medium text-slate-600">Today</span>
               </div>
               <p className="text-3xl font-bold text-slate-900">
                 {isLoading
                   ? '...'
                   : formatCurrency(
-                      statistics?.totalExpensesThisMonth || 0,
-                      statistics?.currency?.code || 'USD'
+                      statistics?.todayExpenses || 0,
+                      wallet?.currency?.code || 'USD'
                     )}
               </p>
-              <p className="mt-2 text-sm text-slate-500">Total expenses</p>
+              <p className="mt-2 text-sm text-slate-500">Spent today</p>
             </div>
           </Link>
 
-          {/* Total Deposits This Month Card */}
+          {/* Week Expenses Card */}
           <Link
-            to="/deposit"
-            className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 p-6 text-white shadow-lg transition-all hover:shadow-xl"
+            to="/expenses"
+            className="group relative overflow-hidden rounded-2xl bg-white p-6 shadow-lg transition-all hover:shadow-xl"
+          >
+            <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-orange-50" />
+            <div className="relative">
+              <div className="mb-4 flex items-center gap-2">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-100">
+                  <TrendingDown className="h-5 w-5 text-orange-600" />
+                </div>
+                <span className="text-sm font-medium text-slate-600">This Week</span>
+              </div>
+              <p className="text-3xl font-bold text-slate-900">
+                {isLoading
+                  ? '...'
+                  : formatCurrency(
+                      statistics?.weekExpenses || 0,
+                      wallet?.currency?.code || 'USD'
+                    )}
+              </p>
+              <p className="mt-2 text-sm text-slate-500">Weekly spending</p>
+            </div>
+          </Link>
+
+          {/* Monthly Expenses Card */}
+          <Link
+            to="/expenses"
+            className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-red-500 to-orange-600 p-6 text-white shadow-lg transition-all hover:shadow-xl"
           >
             <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-white/10" />
             <div className="relative">
               <div className="mb-4 flex items-center gap-2">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/20">
-                  <TrendingUp className="h-5 w-5" />
+                  <TrendingDown className="h-5 w-5" />
                 </div>
-                <span className="text-sm font-medium opacity-90">Deposits This Month</span>
+                <span className="text-sm font-medium opacity-90">This Month</span>
               </div>
               <p className="text-3xl font-bold">
                 {isLoading
                   ? '...'
                   : formatCurrency(
-                      statistics?.totalDepositsThisMonth || 0,
-                      statistics?.currency?.code || 'USD'
+                      statistics?.monthExpenses || 0,
+                      wallet?.currency?.code || 'USD'
                     )}
               </p>
-              <p className="mt-2 text-sm opacity-75">Total deposits</p>
+              <p className="mt-2 text-xs opacity-75">
+                Avg: {isLoading ? '...' : formatCurrency(statistics?.averageDailyExpenses || 0, wallet?.currency?.code || 'USD')}/day
+              </p>
             </div>
           </Link>
         </div>
@@ -206,7 +254,7 @@ export default function DashboardPage() {
                       <p className="font-medium text-slate-900">{expense.description}</p>
                       <div className="flex items-center gap-2 text-sm text-slate-500">
                         <Calendar className="h-3.5 w-3.5" />
-                        {formatDate(expense.date)}
+                        {formatDateShort(expense.date)}
                         <span>•</span>
                         <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium">
                           {expense.categoryName}
@@ -216,7 +264,7 @@ export default function DashboardPage() {
                   </div>
                   <div className="text-right">
                     <p className="text-lg font-bold text-red-600">
-                      -{formatCurrency(expense.amount, statistics?.currency?.code || 'USD')}
+                      -{formatCurrency(expense.amount, wallet?.currency?.code || 'USD')}
                     </p>
                   </div>
                 </div>

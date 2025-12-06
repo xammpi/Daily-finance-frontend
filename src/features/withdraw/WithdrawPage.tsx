@@ -1,14 +1,15 @@
 import { useState, FormEvent } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, PiggyBank, DollarSign, CheckCircle } from 'lucide-react'
+import { ArrowLeft, Wallet, DollarSign, CheckCircle, FileText } from 'lucide-react'
 import { userApi } from '@/api/user'
 import { formatCurrency, isValidAmount } from '@/utils'
 import Layout from '@/components/Layout'
 
-export default function DepositPage() {
+export default function WithdrawPage() {
   const navigate = useNavigate()
 
   const [amount, setAmount] = useState('')
+  const [description, setDescription] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
@@ -23,23 +24,28 @@ export default function DepositPage() {
       return
     }
 
-    const depositAmount = parseFloat(amount)
+    const withdrawAmount = parseFloat(amount)
 
     try {
       setIsLoading(true)
-      const updatedUser = await userApi.deposit({ amount: depositAmount })
+      const updatedUser = await userApi.withdraw({
+        amount: withdrawAmount,
+        description: description || undefined,
+      })
       const currencyCode = updatedUser.wallet.currency.code
       setSuccess(
-        `Successfully deposited ${formatCurrency(depositAmount, currencyCode)}. New balance: ${formatCurrency(updatedUser.wallet.amount, currencyCode)}`
+        `Successfully withdrawn ${formatCurrency(withdrawAmount, currencyCode)}. New balance: ${formatCurrency(updatedUser.wallet.amount, currencyCode)}`
       )
       setAmount('')
+      setDescription('')
 
       // Redirect to dashboard after 2 seconds
       setTimeout(() => {
         navigate('/dashboard')
       }, 2000)
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to deposit money')
+      const errorMessage = err.response?.data?.message || 'Failed to withdraw money'
+      setError(errorMessage)
       console.error(err)
     } finally {
       setIsLoading(false)
@@ -60,12 +66,12 @@ export default function DepositPage() {
 
         {/* Header */}
         <div className="flex items-start gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg">
-            <PiggyBank className="h-7 w-7 text-white" />
+          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-red-500 to-orange-600 shadow-lg">
+            <Wallet className="h-7 w-7 text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">Deposit Money</h1>
-            <p className="mt-1 text-slate-600">Add funds to your account balance</p>
+            <h1 className="text-3xl font-bold text-slate-900">Withdraw Money</h1>
+            <p className="mt-1 text-slate-600">Remove funds from your account balance</p>
           </div>
         </div>
 
@@ -92,18 +98,18 @@ export default function DepositPage() {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-6 rounded-2xl bg-white p-8 shadow-lg">
-          {/* Info Card */}
-          <div className="rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 p-4">
-            <p className="text-sm text-emerald-900">
-              Add funds to your balance to track your expenses. The deposited amount will be immediately
-              available in your account.
+          {/* Warning Card */}
+          <div className="rounded-xl bg-gradient-to-br from-orange-50 to-red-50 p-4">
+            <p className="text-sm text-orange-900">
+              Withdraw funds from your balance. Make sure you have sufficient balance before proceeding.
+              This action will reduce your available balance.
             </p>
           </div>
 
           <div>
             <label htmlFor="amount" className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
               <DollarSign className="h-4 w-4" />
-              Amount to Deposit <span className="text-red-500">*</span>
+              Amount to Withdraw <span className="text-red-500">*</span>
             </label>
             <div className="relative">
               <input
@@ -113,13 +119,34 @@ export default function DepositPage() {
                 required
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-lg transition-all focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-lg transition-all focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 disabled:cursor-not-allowed disabled:opacity-50"
                 placeholder="0.00"
                 disabled={isLoading || !!success}
               />
             </div>
             <p className="mt-2 text-sm text-slate-500">
-              Enter the amount you want to add to your balance
+              Enter the amount you want to withdraw from your balance
+            </p>
+          </div>
+
+          <div>
+            <label htmlFor="description" className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
+              <FileText className="h-4 w-4" />
+              Description <span className="text-slate-400">(optional)</span>
+            </label>
+            <div className="relative">
+              <input
+                id="description"
+                type="text"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 transition-all focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                placeholder="e.g., ATM withdrawal, Cash out"
+                disabled={isLoading || !!success}
+              />
+            </div>
+            <p className="mt-2 text-sm text-slate-500">
+              Optional note about this withdrawal
             </p>
           </div>
 
@@ -127,10 +154,10 @@ export default function DepositPage() {
             <button
               type="submit"
               disabled={isLoading || !!success}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-6 py-3 font-medium text-white shadow-lg transition-all hover:scale-105 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-500 to-orange-600 px-6 py-3 font-medium text-white shadow-lg transition-all hover:scale-105 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
             >
-              <PiggyBank className="h-5 w-5" />
-              {isLoading ? 'Processing...' : success ? 'Redirecting...' : 'Deposit Funds'}
+              <Wallet className="h-5 w-5" />
+              {isLoading ? 'Processing...' : success ? 'Redirecting...' : 'Withdraw Funds'}
             </button>
             {!success && (
               <Link
@@ -145,19 +172,23 @@ export default function DepositPage() {
 
         {/* Quick Tips */}
         <div className="rounded-2xl bg-white p-6 shadow-lg">
-          <h3 className="mb-3 font-semibold text-slate-900">Quick Tips</h3>
+          <h3 className="mb-3 font-semibold text-slate-900">Important Notes</h3>
           <ul className="space-y-2 text-sm text-slate-600">
             <li className="flex items-start gap-2">
-              <span className="text-emerald-500">•</span>
-              <span>Deposits are processed instantly</span>
+              <span className="text-red-500">•</span>
+              <span>Withdrawals are processed instantly</span>
             </li>
             <li className="flex items-start gap-2">
-              <span className="text-emerald-500">•</span>
-              <span>Your balance will be updated immediately after deposit</span>
+              <span className="text-red-500">•</span>
+              <span>You must have sufficient balance to complete the withdrawal</span>
             </li>
             <li className="flex items-start gap-2">
-              <span className="text-emerald-500">•</span>
-              <span>Track your spending and deposits from the dashboard</span>
+              <span className="text-red-500">•</span>
+              <span>Your balance will be updated immediately after withdrawal</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-red-500">•</span>
+              <span>A description is optional but helps track your transactions</span>
             </li>
           </ul>
         </div>

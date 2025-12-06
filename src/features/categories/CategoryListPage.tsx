@@ -61,7 +61,6 @@ export default function CategoryListPage() {
       await categoriesApi.delete(id)
       fetchCategories()
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to delete category')
       console.error(err)
     }
   }

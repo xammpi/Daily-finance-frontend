@@ -7,6 +7,8 @@ import ExpenseFormPage from '@/features/expenses/ExpenseFormPage'
 import CategoryListPage from '@/features/categories/CategoryListPage'
 import CategoryFormPage from '@/features/categories/CategoryFormPage'
 import DepositPage from '@/features/deposit/DepositPage'
+import WithdrawPage from '@/features/withdraw/WithdrawPage'
+import WalletPage from '@/features/wallet/WalletPage'
 import ProtectedRoute from '@/routes/ProtectedRoute'
 
 function App() {
@@ -55,6 +57,24 @@ function App() {
           element={
             <ProtectedRoute>
               <DepositPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/withdraw"
+          element={
+            <ProtectedRoute>
+              <WithdrawPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/wallet"
+          element={
+            <ProtectedRoute>
+              <WalletPage />
             </ProtectedRoute>
           }
         />

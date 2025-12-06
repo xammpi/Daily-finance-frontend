@@ -1,5 +1,5 @@
 import apiClient from './client'
-import type { Category } from '@/types'
+import type { Category, SearchRequest, PaginatedResponse } from '@/types'
 
 export interface CreateCategoryRequest {
   name: string
@@ -7,13 +7,35 @@ export interface CreateCategoryRequest {
 }
 
 export const categoriesApi = {
+  /**
+   * Get all categories (uses search endpoint with empty criteria)
+   * @returns All categories sorted by name
+   */
   getAll: async (): Promise<Category[]> => {
-    const response = await apiClient.get<Category[]>('/categories')
-    return response.data
+    const response = await apiClient.post<PaginatedResponse<Category>>('/categories/search', {
+      criteria: [],
+      page: 0,
+      size: 100,
+      sortBy: 'name',
+      sortOrder: 'ASC'
+    })
+    return response.data.content
   },
 
   getById: async (id: number): Promise<Category> => {
     const response = await apiClient.get<Category>(`/categories/${id}`)
+    return response.data
+  },
+
+  /**
+   * Search categories using criteria-based filtering (POST endpoint)
+   * Supports complex queries with multiple operations
+   *
+   * @param request - Search request with criteria array
+   * @returns Paginated response with matching categories
+   */
+  search: async (request: SearchRequest): Promise<PaginatedResponse<Category>> => {
+    const response = await apiClient.post<PaginatedResponse<Category>>('/categories/search', request)
     return response.data
   },
 

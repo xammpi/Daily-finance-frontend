@@ -16,7 +16,14 @@
       "Bash(git push:*)",
       "Bash(gh pr create:*)",
       "Bash(curl:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(echo:*)",
+      "Bash(unset VITE_API_BASE_URL)",
+      "mcp__ide__getDiagnostics",
+      "Bash(npx tsc:*)",
+      "Bash(npm run lint:*)"
     ],
     "deny": [],
     "ask": []
