@@ -14,29 +14,41 @@ import {
   ChevronsLeft,
   ChevronsRight,
   DollarSign,
-  ArrowUpDown,
   ArrowUp,
   ArrowDown
 } from 'lucide-react'
-import { expensesApi } from '@/api/expenses'
+import { transactionApi } from '@/api/transaction.ts'
 import { categoriesApi } from '@/api/categories'
 import Layout from '@/components/Layout'
-import ExpenseModal from '@/components/ExpenseModal'
+import TransactionModal from '@/components/TransactionModal.tsx'
 import { formatCurrency, formatDateForDisplay, getCurrentMonthRange, getCurrentWeekRange, getTodayDate } from '@/utils'
 import { CriteriaBuilder } from '@/utils/CriteriaBuilder'
-import type { Expense, Category, PaginatedResponse, ExpenseFilterParams } from '@/types'
+import type { PaginatedResponse } from '@/types'
+import { Transaction } from '@/types/transaction.ts'
+import { Category } from '@/types/category.ts'
 
-export default function ExpenseListPage() {
-  const [paginatedData, setPaginatedData] = useState<PaginatedResponse<Expense> | null>(null)
+// Local filter interface for transaction filtering
+interface TransactionFilterParams {
+  categoryId?: number
+  startDate?: string
+  endDate?: string
+  minAmount?: number
+  maxAmount?: number
+  page?: number
+  size?: number
+}
+
+export default function TransactionListPage() {
+  const [paginatedData, setPaginatedData] = useState<PaginatedResponse<Transaction> | null>(null)
   const [categories, setCategories] = useState<Category[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [editingExpenseId, setEditingExpenseId] = useState<number | undefined>(undefined)
+  const [editingTransactionId, setEditingTransactionId] = useState<number | undefined>(undefined)
   const [showFilters, setShowFilters] = useState(false)
 
   // Filter state
-  const [filters, setFilters] = useState<ExpenseFilterParams>({
+  const [filters, setFilters] = useState<TransactionFilterParams>({
     categoryId: undefined,
     startDate: undefined,
     endDate: undefined,
@@ -50,16 +62,26 @@ export default function ExpenseListPage() {
   const [sortBy, setSortBy] = useState<'date' | 'amount' | 'categoryName'>('date')
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC')
 
-  // Text search (client-side on results)
+  // Text search state
   const [searchTerm, setSearchTerm] = useState('')
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
 
   useEffect(() => {
     fetchCategories()
   }, [])
 
+  // Debounce search term (300ms delay)
   useEffect(() => {
-    fetchExpenses()
-  }, [filters.categoryId, filters.startDate, filters.endDate, filters.minAmount, filters.maxAmount, filters.page, filters.size, sortBy, sortOrder])
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm)
+    }, 300)
+
+    return () => clearTimeout(timer)
+  }, [searchTerm])
+
+  useEffect(() => {
+    fetchTransactions()
+  }, [filters.categoryId, filters.startDate, filters.endDate, filters.minAmount, filters.maxAmount, filters.page, filters.size, sortBy, sortOrder, debouncedSearchTerm])
 
   const fetchCategories = async () => {
     try {
@@ -70,13 +92,18 @@ export default function ExpenseListPage() {
     }
   }
 
-  const fetchExpenses = async () => {
+  const fetchTransactions = async () => {
     try {
       setIsLoading(true)
       setError(null)
 
       // Convert filters to SearchRequest with criteria
       const builder = new CriteriaBuilder()
+
+      // Add text search on description if search term exists (min 2 chars)
+      if (debouncedSearchTerm.trim() && debouncedSearchTerm.trim().length >= 2) {
+        builder.like('description', debouncedSearchTerm.trim())
+      }
 
       if (filters.categoryId) {
         builder.equals('categoryId', filters.categoryId)
@@ -105,10 +132,10 @@ export default function ExpenseListPage() {
         sortOrder: sortOrder
       })
 
-      const data = await expensesApi.search(searchRequest)
+      const data = await transactionApi.search(searchRequest)
       setPaginatedData(data)
     } catch (err) {
-      setError('Failed to load expenses')
+      setError('Failed to load transactions')
       console.error(err)
     } finally {
       setIsLoading(false)
@@ -116,47 +143,43 @@ export default function ExpenseListPage() {
   }
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('Are you sure you want to delete this expense?')) {
-      return
-    }
-
     try {
-      await expensesApi.delete(id)
-      fetchExpenses()
+      await transactionApi.delete(id)
+      fetchTransactions()
     } catch (err) {
       console.error(err)
     }
   }
 
-  const handleOpenModal = (expenseId?: number) => {
-    setEditingExpenseId(expenseId)
+  const handleOpenModal = (transactionId?: number) => {
+    setEditingTransactionId(transactionId)
     setIsModalOpen(true)
   }
 
   const handleCloseModal = () => {
     setIsModalOpen(false)
-    setEditingExpenseId(undefined)
+    setEditingTransactionId(undefined)
   }
 
   const handleModalSuccess = () => {
-    fetchExpenses()
+    fetchTransactions()
   }
 
   const handleQuickFilter = (filter: 'today' | 'week' | 'month' | 'all') => {
     switch (filter) {
       case 'today':
         { const today = getTodayDate()
-        setFilters(prev => ({ ...prev, startDate: today, endDate: today, page: 0 }))
+        setFilters((prev: TransactionFilterParams) => ({ ...prev, startDate: today, endDate: today, page: 0 }))
         setShowFilters(true)
         break }
       case 'week':
         { const weekRange = getCurrentWeekRange()
-        setFilters(prev => ({ ...prev, startDate: weekRange.startDate, endDate: weekRange.endDate, page: 0 }))
+        setFilters((prev: TransactionFilterParams) => ({ ...prev, startDate: weekRange.startDate, endDate: weekRange.endDate, page: 0 }))
         setShowFilters(true)
         break }
       case 'month':
         { const monthRange = getCurrentMonthRange()
-        setFilters(prev => ({ ...prev, startDate: monthRange.startDate, endDate: monthRange.endDate, page: 0 }))
+        setFilters((prev: TransactionFilterParams) => ({ ...prev, startDate: monthRange.startDate, endDate: monthRange.endDate, page: 0 }))
         setShowFilters(true)
         break }
       case 'all':
@@ -166,6 +189,8 @@ export default function ExpenseListPage() {
   }
 
   const clearFilters = () => {
+    setSearchTerm('')
+    setDebouncedSearchTerm('')
     setFilters({
       categoryId: undefined,
       startDate: undefined,
@@ -179,32 +204,29 @@ export default function ExpenseListPage() {
   }
 
   const handlePageChange = (newPage: number) => {
-    setFilters(prev => ({ ...prev, page: newPage }))
+    setFilters((prev: TransactionFilterParams) => ({ ...prev, page: newPage }))
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const handlePageSizeChange = (newSize: number) => {
-    setFilters(prev => ({ ...prev, size: newSize, page: 0 }))
+    setFilters((prev: TransactionFilterParams) => ({ ...prev, size: newSize, page: 0 }))
   }
 
-  // Client-side text search on current page results
-  const expenses = paginatedData?.content || []
-  const filteredExpenses = expenses.filter(expense =>
-    expense.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    expense.categoryName.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  // Get transactions from paginated data (filtering is done by backend)
+  const transactions = paginatedData?.content || []
 
-  // Group expenses by date
-  const groupedExpenses = filteredExpenses.reduce((groups, expense) => {
-    const date = formatDateForDisplay(expense.date)
+  // Group transactions by date
+  const groupedTransactions = transactions.reduce((groups, transaction) => {
+    const date = formatDateForDisplay(transaction.date)
     if (!groups[date]) {
       groups[date] = []
     }
-    groups[date].push(expense)
+    groups[date].push(transaction)
     return groups
-  }, {} as Record<string, Expense[]>)
+  }, {} as Record<string, Transaction[]>)
 
-  const hasActiveFilters = filters.categoryId || filters.startDate || filters.endDate ||
+  const hasActiveFilters = (debouncedSearchTerm.trim() && debouncedSearchTerm.trim().length >= 2) ||
+    filters.categoryId || filters.startDate || filters.endDate ||
     filters.minAmount !== undefined || filters.maxAmount !== undefined
 
   if (isLoading && !paginatedData) {
@@ -213,7 +235,7 @@ export default function ExpenseListPage() {
         <div className="flex h-[60vh] items-center justify-center">
           <div className="text-center">
             <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-indigo-600" />
-            <p className="text-slate-600">Loading expenses...</p>
+            <p className="text-slate-600">Loading transactions...</p>
           </div>
         </div>
       </Layout>
@@ -236,23 +258,15 @@ export default function ExpenseListPage() {
   }
 
   return (
-    <Layout onAddExpense={() => handleOpenModal()}>
+    <Layout onAddTransaction={() => handleOpenModal()}>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">Expenses</h1>
             <p className="mt-1 text-slate-600">
-              {paginatedData?.totalElements || 0} total expense{paginatedData?.totalElements !== 1 ? 's' : ''}
+              {paginatedData?.totalElements || 0} total transaction{paginatedData?.totalElements !== 1 ? 's' : ''}
             </p>
           </div>
-          <button
-            onClick={() => handleOpenModal()}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-3 font-medium text-white shadow-lg transition-transform hover:scale-105"
-          >
-            <Plus className="h-5 w-5" />
-            Add Expense
-          </button>
         </div>
 
         {/* Search and Filter Button */}
@@ -262,11 +276,19 @@ export default function ExpenseListPage() {
               <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search expenses..."
+                placeholder="Search transactions (min 2 characters)..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value)
+                  setFilters((prev: TransactionFilterParams) => ({ ...prev, page: 0 }))
+                }}
                 className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-12 pr-4 transition-all focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
               />
+              {searchTerm.trim() && searchTerm.trim().length < 2 && (
+                <div className="absolute left-0 top-full mt-1 rounded-lg bg-amber-50 px-3 py-1 text-xs text-amber-700 shadow-sm">
+                  Enter at least 2 characters to search
+                </div>
+              )}
             </div>
             <button
               onClick={() => setShowFilters(!showFilters)}
@@ -280,7 +302,12 @@ export default function ExpenseListPage() {
               Filters
               {hasActiveFilters && (
                 <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-xs text-white">
-                  {[filters.categoryId, filters.startDate, filters.minAmount].filter(Boolean).length}
+                  {[
+                    debouncedSearchTerm.trim() && debouncedSearchTerm.trim().length >= 2 ? debouncedSearchTerm : null,
+                    filters.categoryId,
+                    filters.startDate,
+                    filters.minAmount
+                  ].filter(Boolean).length}
                 </span>
               )}
             </button>
@@ -313,7 +340,7 @@ export default function ExpenseListPage() {
               <div className="mb-4 flex items-center justify-between">
                 <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-900">
                   <Filter className="h-5 w-5" />
-                  Filter Expenses
+                  Filter Transactions
                 </h3>
                 <button
                   onClick={() => setShowFilters(false)}
@@ -361,7 +388,7 @@ export default function ExpenseListPage() {
                   <select
                     id="categoryFilter"
                     value={filters.categoryId || ''}
-                    onChange={(e) => setFilters(prev => ({ ...prev, categoryId: e.target.value ? Number(e.target.value) : undefined, page: 0 }))}
+                    onChange={(e) => setFilters((prev: TransactionFilterParams) => ({ ...prev, categoryId: e.target.value ? Number(e.target.value) : undefined, page: 0 }))}
                     className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2 transition-all focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                   >
                     <option value="">All Categories</option>
@@ -383,7 +410,7 @@ export default function ExpenseListPage() {
                     type="date"
                     value={filters.startDate || ''}
                     max={new Date().toISOString().split('T')[0]}
-                    onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value || undefined, page: 0 }))}
+                    onChange={(e) => setFilters((prev: TransactionFilterParams) => ({ ...prev, startDate: e.target.value || undefined, page: 0 }))}
                     className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2 transition-all focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                   />
                 </div>
@@ -398,7 +425,7 @@ export default function ExpenseListPage() {
                     type="date"
                     value={filters.endDate || ''}
                     max={new Date().toISOString().split('T')[0]}
-                    onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value || undefined, page: 0 }))}
+                    onChange={(e) => setFilters((prev: TransactionFilterParams) => ({ ...prev, endDate: e.target.value || undefined, page: 0 }))}
                     className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2 transition-all focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                   />
                 </div>
@@ -416,7 +443,7 @@ export default function ExpenseListPage() {
                       step="0.01"
                       min="0"
                       value={filters.minAmount ?? ''}
-                      onChange={(e) => setFilters(prev => ({ ...prev, minAmount: e.target.value ? Number(e.target.value) : undefined, page: 0 }))}
+                      onChange={(e) => setFilters((prev: TransactionFilterParams) => ({ ...prev, minAmount: e.target.value ? Number(e.target.value) : undefined, page: 0 }))}
                       className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-4 transition-all focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                       placeholder="0.00"
                     />
@@ -436,7 +463,7 @@ export default function ExpenseListPage() {
                       step="0.01"
                       min="0"
                       value={filters.maxAmount ?? ''}
-                      onChange={(e) => setFilters(prev => ({ ...prev, maxAmount: e.target.value ? Number(e.target.value) : undefined, page: 0 }))}
+                      onChange={(e) => setFilters((prev: TransactionFilterParams) => ({ ...prev, maxAmount: e.target.value ? Number(e.target.value) : undefined, page: 0 }))}
                       className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-4 transition-all focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                       placeholder="0.00"
                     />
@@ -481,41 +508,41 @@ export default function ExpenseListPage() {
           )}
         </div>
 
-        {/* Expenses List */}
-        {filteredExpenses.length === 0 ? (
+        {/* Transaction List */}
+        {transactions.length === 0 ? (
           <div className="rounded-2xl bg-white p-12 text-center shadow-lg">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
               <Receipt className="h-8 w-8 text-slate-400" />
             </div>
-            <p className="mb-2 text-lg font-medium text-slate-900">No expenses found</p>
+            <p className="mb-2 text-lg font-medium text-slate-900">No transaction found</p>
             <p className="mb-6 text-slate-500">
               {searchTerm || hasActiveFilters
                 ? 'Try adjusting your search or filter criteria'
-                : 'Start by creating your first expense'}
+                : 'Start by creating your first transaction'}
             </p>
             {!searchTerm && !hasActiveFilters && (
               <button
                 onClick={() => handleOpenModal()}
-                className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 font-medium text-white transition-colors hover:bg-indigo-700"
-              >
+                className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-6
+                 py-3 font-medium text-white transition-colors hover:bg-indigo-700">
                 <Plus className="h-5 w-5" />
-                Create Your First Expense
+                Create Your First Transaction
               </button>
             )}
           </div>
         ) : (
           <>
             <div className="space-y-6">
-              {Object.entries(groupedExpenses).map(([date, dateExpenses]) => (
+              {Object.entries(groupedTransactions).map(([date, dateTransactions]) => (
                 <div key={date} className="space-y-3">
                   <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
                     <Calendar className="h-4 w-4" />
                     {date}
                   </div>
                   <div className="space-y-3">
-                    {dateExpenses.map((expense) => (
+                    {dateTransactions.map((transaction) => (
                       <div
-                        key={expense.id}
+                        key={transaction.id}
                         className="group flex items-center justify-between rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-indigo-200 hover:shadow-md"
                       >
                         <div className="flex items-center gap-4">
@@ -523,27 +550,27 @@ export default function ExpenseListPage() {
                             <TrendingDown className="h-6 w-6 text-red-600" />
                           </div>
                           <div>
-                            <p className="font-semibold text-slate-900">{expense.description}</p>
+                            <p className="font-semibold text-slate-900">{transaction.description}</p>
                             <div className="mt-1 flex items-center gap-2">
                               <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-medium text-indigo-700">
-                                {expense.categoryName}
+                                {transaction.categoryName}
                               </span>
                             </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-4">
                           <div className="text-right">
-                            <p className="text-xl font-bold text-red-600">-{formatCurrency(expense.amount)}</p>
+                            <p className="text-xl font-bold text-red-600">{formatCurrency(transaction.amount)}</p>
                           </div>
                           <div className="flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
                             <button
-                              onClick={() => handleOpenModal(expense.id)}
+                              onClick={() => handleOpenModal(transaction.id)}
                               className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 transition-colors hover:bg-indigo-100"
                             >
                               <Edit2 className="h-4 w-4" />
                             </button>
                             <button
-                              onClick={() => handleDelete(expense.id)}
+                              onClick={() => handleDelete(transaction.id)}
                               className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-50 text-red-600 transition-colors hover:bg-red-100"
                             >
                               <Trash2 className="h-4 w-4" />
@@ -566,7 +593,7 @@ export default function ExpenseListPage() {
                   </span>
                   <span className="text-slate-400">•</span>
                   <span>
-                    {expenses.length} of {paginatedData.totalElements} expenses
+                    {transactions.length} of {paginatedData.totalElements} expenses
                   </span>
                 </div>
 
@@ -610,12 +637,12 @@ export default function ExpenseListPage() {
         )}
       </div>
 
-      {/* Expense Modal */}
-      <ExpenseModal
+      {/* Transaction Modal */}
+      <TransactionModal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         onSuccess={handleModalSuccess}
-        expenseId={editingExpenseId}
+        transactionId={editingTransactionId}
       />
     </Layout>
   )

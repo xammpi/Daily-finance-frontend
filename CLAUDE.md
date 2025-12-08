@@ -94,13 +94,13 @@ src/
 ├── api/                      # API client and endpoints
 │   ├── client.ts            # Axios client with JWT interceptors ✅
 │   ├── auth.ts              # Authentication API (login, register) ✅
-│   ├── expenses.ts          # Expense CRUD operations ✅
+│   ├── transaction.ts          # Expense CRUD operations ✅
 │   ├── categories.ts        # Category management API ✅
 │   └── user.ts              # User profile, deposit, balance summary ✅
 ├── assets/                  # Static assets
 ├── components/              # Reusable components
 │   ├── Layout.tsx           # Sidebar layout with navigation ✅
-│   ├── ExpenseModal.tsx     # Modal for create/edit expenses ✅
+│   ├── TransactionModal.tsx     # Modal for create/edit expenses ✅
 │   └── ProtectedRoute.tsx   # Auth guard ✅ (moved from routes/)
 ├── features/                # Feature-based modules
 │   ├── auth/                # Authentication pages ✅
@@ -109,8 +109,8 @@ src/
 │   ├── dashboard/           # Dashboard ✅
 │   │   └── DashboardPage.tsx   # Stats cards + recent expenses ✅
 │   ├── expenses/            # Expense pages ✅
-│   │   ├── ExpenseListPage.tsx  # List with search, uses modal ✅
-│   │   └── ExpenseFormPage.tsx  # Legacy page (keep for routes) ✅
+│   │   ├── TransactionListPage.tsx  # List with search, uses modal ✅
+│   │   └── TransactionFormPage.tsx  # Legacy page (keep for routes) ✅
 │   ├── categories/          # Category pages ✅
 │   │   ├── CategoryListPage.tsx  # Grid with colorful cards ✅
 │   │   └── CategoryFormPage.tsx  # Create/edit form ✅
@@ -130,10 +130,10 @@ src/
 
 ### Important Files
 - `src/api/client.ts` - Axios client with JWT interceptors
-- `src/api/expenses.ts` - Expense API calls (getAll, create, update, delete)
+- `src/api/transaction.ts` - Expense API calls (getAll, create, update, delete)
 - `src/api/user.ts` - User API (profile, deposit, balance-summary)
 - `src/components/Layout.tsx` - Sidebar layout with navigation and FAB
-- `src/components/ExpenseModal.tsx` - Modal for adding/editing expenses
+- `src/components/TransactionModal.tsx` - Modal for adding/editing expenses
 - `src/store/authStore.ts` - Zustand store for authentication state
 - `src/types/index.ts` - TypeScript interfaces matching backend DTOs
 
@@ -340,7 +340,7 @@ All authenticated pages use `<Layout>` component:
 #### 2. Modal Pattern for Expenses
 Instead of navigating to a form page, expenses use a modal:
 ```typescript
-<ExpenseModal
+<TransactionModal
   isOpen={isModalOpen}
   onClose={handleCloseModal}
   onSuccess={handleModalSuccess}
@@ -428,8 +428,8 @@ className="flex items-center justify-center gap-2 rounded-xl
 - ✅ Redesign LoginPage with modern styling
 - ✅ Redesign RegisterPage with modern styling
 - ✅ Redesign DashboardPage with stats cards
-- ✅ Redesign ExpenseListPage with card layout
-- ✅ Redesign ExpenseFormPage with modern styling
+- ✅ Redesign TransactionListPage with card layout
+- ✅ Redesign TransactionFormPage with modern styling
 - ✅ Redesign CategoryListPage with colorful cards
 - ✅ Redesign CategoryFormPage with modern styling
 - ✅ Redesign DepositPage with modern design
@@ -438,8 +438,8 @@ className="flex items-center justify-center gap-2 rounded-xl
 - ✅ Add beautiful empty states
 
 ### ✅ Phase 4: Modal & UX Improvements (Completed)
-- ✅ Create ExpenseModal component
-- ✅ Integrate modal in ExpenseListPage
+- ✅ Create TransactionModal component
+- ✅ Integrate modal in TransactionListPage
 - ✅ Integrate modal in DashboardPage
 - ✅ Connect FAB to modal
 - ✅ Implement edit expense via modal

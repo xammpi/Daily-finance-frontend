@@ -5,12 +5,12 @@
 
 import { useState, useEffect } from 'react'
 import { balanceManager } from '@/utils/BalanceManager'
-import type { WalletResponse, Currency } from '@/types'
+import type { Wallet, Currency } from '@/types'
 
 interface UseBalanceReturn {
   balance: number
   currency: Currency
-  wallet: WalletResponse | null
+  wallet: Wallet | null
   isLowBalance: boolean
   isLoading: boolean
   refresh: () => Promise<void>
@@ -37,7 +37,7 @@ interface UseBalanceReturn {
 export function useBalance(): UseBalanceReturn {
   const [balance, setBalance] = useState<number>(balanceManager.getBalance())
   const [currency, setCurrency] = useState<Currency>(balanceManager.getCurrency())
-  const [wallet, setWallet] = useState<WalletResponse | null>(balanceManager.getWallet())
+  const [wallet, setWallet] = useState<Wallet | null>(balanceManager.getWallet())
   const [isLoading, setIsLoading] = useState<boolean>(false)
 
   useEffect(() => {

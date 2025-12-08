@@ -23,27 +23,5 @@ export {
   roundAmount,
 } from './amountUtils'
 
-// Function utilities
-export { debounce, throttle, sleep, retry } from './functionUtils'
-
-// Validation utilities
-export {
-  isValidEmail,
-  isValidPassword,
-  isValidUsername,
-  isRequired,
-  isNotFutureDate,
-  isInRange,
-} from './validationUtils'
-
-// API Helper utilities
-export {
-  apiRequest,
-  isAuthenticated,
-  saveAuthTokens,
-  logout,
-  getCurrentUserId,
-} from './apiHelper'
-
 // Balance Manager
 export { BalanceManager, balanceManager } from './BalanceManager'

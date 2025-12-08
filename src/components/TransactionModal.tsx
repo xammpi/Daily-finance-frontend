@@ -1,18 +1,19 @@
 import { useState, useEffect, FormEvent } from 'react'
 import { X, Receipt, DollarSign, Calendar, FileText, Tag, Save } from 'lucide-react'
-import { expensesApi } from '@/api/expenses'
+import { transactionApi } from '@/api/transaction.ts'
 import { categoriesApi } from '@/api/categories'
-import type { Expense, Category } from '@/types'
+import { Transaction } from '@/types/transaction.ts'
+import { Category } from '@/types/category.ts'
 
-interface ExpenseModalProps {
+interface TransactionModalProps {
   isOpen: boolean
   onClose: () => void
   onSuccess: () => void
-  expenseId?: number
+  transactionId?: number
 }
 
-export default function ExpenseModal({ isOpen, onClose, onSuccess, expenseId }: ExpenseModalProps) {
-  const isEditMode = Boolean(expenseId)
+export default function TransactionModal({ isOpen, onClose, onSuccess, transactionId }: TransactionModalProps) {
+  const isEditMode = Boolean(transactionId)
 
   const [amount, setAmount] = useState('')
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
@@ -29,7 +30,7 @@ export default function ExpenseModal({ isOpen, onClose, onSuccess, expenseId }: 
     if (isOpen) {
       fetchData()
     }
-  }, [isOpen, expenseId])
+  }, [isOpen, transactionId])
 
   const fetchData = async () => {
     try {
@@ -37,8 +38,8 @@ export default function ExpenseModal({ isOpen, onClose, onSuccess, expenseId }: 
       const categoriesData = await categoriesApi.getAll()
       setCategories(categoriesData)
 
-      if (expenseId) {
-        const expense: Expense = await expensesApi.getById(expenseId)
+      if (transactionId) {
+        const expense: Transaction = await transactionApi.getById(transactionId)
         setAmount(expense.amount.toString())
         setDate(expense.date.split('T')[0])
         setDescription(expense.description)
@@ -61,7 +62,7 @@ export default function ExpenseModal({ isOpen, onClose, onSuccess, expenseId }: 
       return
     }
 
-    const expenseData = {
+    const transactionExpenseData = {
       amount: parseFloat(amount),
       date,
       description,
@@ -70,10 +71,10 @@ export default function ExpenseModal({ isOpen, onClose, onSuccess, expenseId }: 
 
     try {
       setIsLoading(true)
-      if (isEditMode && expenseId) {
-        await expensesApi.update(expenseId, expenseData)
+      if (isEditMode && transactionId) {
+        await transactionApi.update(transactionId, transactionExpenseData)
       } else {
-        await expensesApi.create(expenseData)
+        await transactionApi.create(transactionExpenseData)
       }
       onSuccess()
       handleClose()
@@ -111,10 +112,10 @@ export default function ExpenseModal({ isOpen, onClose, onSuccess, expenseId }: 
             </div>
             <div>
               <h2 className="text-xl font-bold text-slate-900">
-                {isEditMode ? 'Edit Expense' : 'New Expense'}
+                {isEditMode ? 'Edit Expense' : 'New Transaction'}
               </h2>
               <p className="text-sm text-slate-600">
-                {isEditMode ? 'Update expense details' : 'Record a new expense'}
+                {isEditMode ? 'Update expense details' : 'Record a new transaction'}
               </p>
             </div>
           </div>

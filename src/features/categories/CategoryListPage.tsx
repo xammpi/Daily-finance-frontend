@@ -6,11 +6,16 @@ import {
   Edit2,
   Trash2,
   Tag,
-  Search
+  Search,
+  TrendingUp,
+  TrendingDown
 } from 'lucide-react'
 import { categoriesApi } from '@/api/categories'
 import Layout from '@/components/Layout'
-import type { Category } from '@/types'
+
+import { Category } from '@/types/category.ts'
+import { CategoryType } from '@/types/category'
+import CategoryModal from '@/components/CategoryModal.tsx'
 
 const categoryColors = [
   'from-blue-500 to-blue-600',
@@ -33,6 +38,22 @@ export default function CategoryListPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingCategoryId, setEditingCategory] = useState<number | undefined>(undefined)
+
+  const handleOpenModal = (categoryId?: number) => {
+    setEditingCategory(categoryId)
+    setIsModalOpen(true)
+  }
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false)
+    setEditingCategory(undefined)
+  }
+
+  const handleModalSuccess = () => {
+    fetchCategories()
+  }
 
   useEffect(() => {
     fetchCategories()
@@ -113,13 +134,13 @@ export default function CategoryListPage() {
               {filteredCategories.length} categor{filteredCategories.length !== 1 ? 'ies' : 'y'}
             </p>
           </div>
-          <Link
-            to="/categories/new"
+          <button
+            onClick={() => handleOpenModal()}
             className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-3 font-medium text-white shadow-lg transition-transform hover:scale-105"
           >
             <Plus className="h-5 w-5" />
             Add Category
-          </Link>
+          </button>
         </div>
 
         {/* Search */}
@@ -146,7 +167,7 @@ export default function CategoryListPage() {
             <p className="mb-6 text-slate-500">
               {searchTerm
                 ? 'Try adjusting your search terms'
-                : 'Create categories to organize your expenses'}
+                : 'Create categories to organize your finances'}
             </p>
             {!searchTerm && (
               <Link
@@ -163,34 +184,56 @@ export default function CategoryListPage() {
             {filteredCategories.map((category, index) => (
               <div
                 key={category.id}
-                className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:border-indigo-200 hover:shadow-lg"
+                className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:border-indigo-200 hover:shadow-lg"
               >
                 {/* Color accent */}
                 <div className={`absolute left-0 top-0 h-1 w-full bg-gradient-to-r ${getCategoryColor(index)}`} />
 
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start gap-3">
-                    <div className={`flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${getCategoryColor(index)} shadow-lg`}>
-                      <Tag className="h-6 w-6 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-bold text-slate-900">{category.name}</h3>
-                      {category.description && (
-                        <p className="mt-1 text-sm text-slate-600">{category.description}</p>
-                      )}
+                <div>
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start gap-3">
+                      <div className={`flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${getCategoryColor(index)} shadow-lg`}>
+                        <Tag className="h-6 w-6 text-white" />
+                      </div>
+
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-slate-900">{category.name}</h3>
+
+                          {/* --- NEW: Transaction Type Badge --- */}
+                          {category.type === CategoryType.INCOME ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
+                              <TrendingUp className="h-3 w-3" />
+                              Income
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 ring-1 ring-inset ring-red-600/20">
+                              <TrendingDown className="h-3 w-3" />
+                              Expense
+                            </span>
+                          )}
+                          {/* ----------------------------------- */}
+
+                        </div>
+                        {category.description && (
+                          <p className="mt-1 text-sm text-slate-600 line-clamp-2">
+                            {category.description}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Action buttons */}
-                <div className="mt-4 flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
-                  <Link
-                    to={`/categories/${category.id}/edit`}
+                <div className="mt-6 flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+                  <button
+                    onClick={() => handleOpenModal(category.id)}
                     className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-indigo-50 py-2 text-sm font-medium text-indigo-600 transition-colors hover:bg-indigo-100"
                   >
                     <Edit2 className="h-4 w-4" />
                     Edit
-                  </Link>
+                  </button>
                   <button
                     onClick={() => handleDelete(category.id)}
                     className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-red-50 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-100"
@@ -204,6 +247,12 @@ export default function CategoryListPage() {
           </div>
         )}
       </div>
+      <CategoryModal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        onSuccess={handleModalSuccess}
+        categoryId={editingCategoryId}
+      />
     </Layout>
   )
 }

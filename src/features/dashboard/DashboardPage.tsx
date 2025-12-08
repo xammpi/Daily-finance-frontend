@@ -9,16 +9,17 @@ import {
   Receipt,
   AlertCircle
 } from 'lucide-react'
-import { expensesApi } from '@/api/expenses'
+import { transactionApi } from '@/api/transaction.ts'
 import { useBalance } from '@/hooks/useBalance'
 import Layout from '@/components/Layout'
-import ExpenseModal from '@/components/ExpenseModal'
+import TransactionModal from '@/components/TransactionModal.tsx'
 import { formatCurrency, formatDateShort } from '@/utils'
-import type { Expense, ExpenseStatistics } from '@/types'
+import type { ExpenseStatistics } from '@/types'
+import { Transaction } from '@/types/transaction.ts'
 
 export default function DashboardPage() {
   const { wallet, refresh: refreshBalance, isLoading: isBalanceLoading } = useBalance()
-  const [expenses, setExpenses] = useState<Expense[]>([])
+  const [expenses, setExpenses] = useState<Transaction[]>([])
   const [statistics, setStatistics] = useState<ExpenseStatistics | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -31,8 +32,8 @@ export default function DashboardPage() {
     try {
       setIsLoading(true)
       const [expensesData, stats] = await Promise.all([
-        expensesApi.getAll(),
-        expensesApi.getStatistics(),
+        transactionApi.getAll(),
+        transactionApi.getStatistics(),
       ])
       setExpenses(expensesData.slice(0, 5))
       setStatistics(stats)
@@ -73,14 +74,8 @@ export default function DashboardPage() {
   }
 
   return (
-    <Layout onAddExpense={handleOpenModal}>
+    <Layout onAddTransaction={handleOpenModal}>
       <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Welcome back! 👋</h1>
-          <p className="mt-1 text-slate-600">Here's what's happening with your money</p>
-        </div>
-
         {/* Low Balance Warning */}
         {wallet?.lowBalanceWarning && (
           <div className="flex items-start gap-3 rounded-xl border border-orange-200 bg-orange-50 p-4 text-orange-700">
@@ -111,8 +106,8 @@ export default function DashboardPage() {
                 {isLoading
                   ? '...'
                   : formatCurrency(
-                      wallet?.currentBalance || 0,
-                      wallet?.currency?.code || 'USD'
+                      wallet?.amount || 0,
+                      wallet?.currency?.code
                     )}
               </p>
               <p className="mt-2 text-xs opacity-75">
@@ -275,7 +270,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Expense Modal */}
-      <ExpenseModal
+      <TransactionModal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         onSuccess={handleModalSuccess}

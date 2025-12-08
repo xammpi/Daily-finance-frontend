@@ -7,7 +7,7 @@ interface WalletManagerModalProps {
   isOpen: boolean
   onClose: () => void
   onSuccess: () => void
-  currentBalance: number
+  amount: number
   currencyCode: string
   currencySymbol: string
 }
@@ -18,7 +18,7 @@ export default function WalletManagerModal({
   isOpen,
   onClose,
   onSuccess,
-  currentBalance,
+  amount: currentBalance,
   currencyCode,
   currencySymbol,
 }: WalletManagerModalProps) {

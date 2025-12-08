@@ -98,7 +98,7 @@ export default function WalletPage() {
                 </div>
               </div>
               <p className="text-5xl font-bold">
-                {formatCurrency(wallet.currentBalance, currencyCode)}
+                {formatCurrency(wallet.amount, currencyCode)}
               </p>
               <p className="mt-2 text-sm opacity-75">
                 Last transaction: {wallet.lastTransactionDate ? new Date(wallet.lastTransactionDate).toLocaleDateString() : 'No transactions yet'}
@@ -114,11 +114,9 @@ export default function WalletPage() {
           <div className="mt-6">
             <button
               onClick={() => setIsModalOpen(true)}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-white/20 px-6 py-3 font-medium backdrop-blur-sm transition-all hover:bg-white/30"
-            >
-              <Settings className="h-5 w-5" />
-              Wallet Manager
-            </button>
+              className="flex w-full items-center justify-center gap-2 rounded-xl
+               bg-white/20 px-6 py-3 font-medium backdrop-blur-sm transition-all hover:bg-white/30">
+              <Settings className="h-5 w-5" />Wallet Manager</button>
           </div>
         </div>
 
@@ -143,14 +141,14 @@ export default function WalletPage() {
             </div>
           </div>
 
-          {/* Total Expenses */}
+          {/* Total Transactions */}
           <div className="rounded-2xl bg-white p-6 shadow-lg">
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-100">
                 <TrendingDown className="h-6 w-6 text-red-600" />
               </div>
               <div>
-                <p className="text-sm text-slate-600">Total Expenses</p>
+                <p className="text-sm text-slate-600">Total Transaction</p>
                 <p className="text-2xl font-bold text-slate-900">{wallet.totalExpenses}</p>
               </div>
             </div>
@@ -240,7 +238,7 @@ export default function WalletPage() {
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-semibold text-slate-900">Current Balance</span>
                     <span className="text-lg font-bold text-slate-900">
-                      {formatCurrency(wallet.currentBalance, currencyCode)}
+                      {formatCurrency(wallet.amount, currencyCode)}
                     </span>
                   </div>
                 </div>
@@ -256,7 +254,7 @@ export default function WalletPage() {
                   <p className="text-lg font-semibold text-slate-900">{wallet.totalDeposits}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-slate-500">Total Expenses</p>
+                  <p className="text-xs text-slate-500">Total Transactions</p>
                   <p className="text-lg font-semibold text-slate-900">{wallet.totalExpenses}</p>
                 </div>
                 <div>
@@ -332,7 +330,7 @@ export default function WalletPage() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSuccess={handleModalSuccess}
-        currentBalance={wallet.currentBalance}
+        amount={wallet.amount}
         currencyCode={wallet.currency.code}
         currencySymbol={wallet.currency.symbol}
       />

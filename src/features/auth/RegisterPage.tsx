@@ -1,224 +1,358 @@
-import { useState, FormEvent } from 'react'
+import { useState, useEffect, useRef, FormEvent, ChangeEvent } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Wallet, User, Mail, Lock, UserPlus, ArrowLeft, Globe } from 'lucide-react'
+import {
+  Wallet, User, Mail, Lock, UserPlus, ArrowLeft, Globe,
+  Loader2, AlertCircle, ChevronDown, Check, Search, X
+} from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
-import { SUPPORTED_CURRENCIES } from '@/types'
+import { currenciesApi } from '@/api/currencies'
 
+// --- Types ---
+interface RegisterFormData {
+  username: string
+  email: string
+  firstName: string
+  lastName: string
+  password: string
+  confirmPassword: string
+  currencyId: number | string
+}
+
+interface Currency {
+  id: number
+  code: string
+  name: string
+  symbol: string
+}
+
+// --- Custom Searchable Dropdown Component ---
+interface CurrencySelectProps {
+  currencies: Currency[]
+  value: number | string
+  onChange: (id: number) => void
+  loading: boolean
+}
+
+const CurrencySelect = ({ currencies, value, onChange, loading }: CurrencySelectProps) => {
+  const [isOpen, setIsOpen] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const wrapperRef = useRef<HTMLDivElement>(null)
+
+  // Find selected currency object for display
+  const selectedCurrency = currencies.find(c => c.id === value)
+
+  // Handle click outside to close dropdown
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
+  // Filter currencies
+  const filteredCurrencies = currencies.filter(c =>
+    c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    c.code.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
+  const handleSelect = (id: number) => {
+    onChange(id)
+    setIsOpen(false)
+    setSearchTerm('') // Optional: Reset search on select
+  }
+
+  return (
+    <div className="relative" ref={wrapperRef}>
+      {/* Trigger Button (Looks like an input) */}
+      <button
+        type="button"
+        disabled={loading}
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-full flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-left transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/20 ${
+          isOpen ? 'border-indigo-500 ring-2 ring-indigo-500/20' : ''
+        } ${loading ? 'bg-slate-50 text-slate-400 cursor-not-allowed' : ''}`}
+      >
+        <span className={`block truncate ${!selectedCurrency ? 'text-slate-400' : 'text-slate-900'}`}>
+          {loading
+            ? "Loading currencies..."
+            : selectedCurrency
+              ? `${selectedCurrency.symbol} ${selectedCurrency.name} (${selectedCurrency.code})`
+              : "Select a currency"
+          }
+        </span>
+        <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {/* Dropdown Menu */}
+      {isOpen && !loading && (
+        <div className="absolute z-10 mt-2 w-full overflow-hidden rounded-xl border border-slate-100 bg-white shadow-xl ring-1 ring-slate-900/5 animate-in fade-in zoom-in-95 duration-100">
+
+          {/* Search Input Sticky Header */}
+          <div className="border-b border-slate-100 bg-slate-50/50 p-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
+              <input
+                type="text"
+                autoFocus
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search USD, Euro..."
+                className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-8 text-sm placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-2 top-2 rounded-full p-0.5 text-slate-400 hover:bg-slate-200 hover:text-slate-600"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* List Options */}
+          <ul className="max-h-60 overflow-auto py-1 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+            {filteredCurrencies.length === 0 ? (
+              <li className="px-4 py-3 text-center text-sm text-slate-500">
+                No currency found
+              </li>
+            ) : (
+              filteredCurrencies.map((currency) => {
+                const isSelected = currency.id === value
+                return (
+                  <li key={currency.id}>
+                    <button
+                      type="button"
+                      onClick={() => handleSelect(currency.id)}
+                      className={`flex w-full items-center justify-between px-4 py-2.5 text-sm transition-colors hover:bg-indigo-50 ${
+                        isSelected ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-slate-700'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="inline-block w-6 text-center font-mono text-xs text-slate-400 bg-slate-100 rounded px-1">
+                          {currency.symbol}
+                        </span>
+                        {currency.name}
+                        <span className="text-xs text-slate-400">({currency.code})</span>
+                      </span>
+                      {isSelected && <Check className="h-4 w-4 text-indigo-600" />}
+                    </button>
+                  </li>
+                )
+              })
+            )}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// --- Main Page Component ---
 export default function RegisterPage() {
-  const [username, setUsername] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [firstName, setFirstName] = useState('')
-  const [lastName, setLastName] = useState('')
-  const [currencyId, setCurrencyId] = useState(1) // Default to USD
-  const [validationError, setValidationError] = useState('')
-  const { register, isLoading, error, clearError } = useAuth()
   const navigate = useNavigate()
+  const { register, isLoading: authLoading, error: authError, clearError } = useAuth()
+
+  const [currencies, setCurrencies] = useState<Currency[]>([])
+  const [currenciesLoading, setCurrenciesLoading] = useState(true)
+  const [currencyError, setCurrencyError] = useState<string | null>(null)
+
+  const [formData, setFormData] = useState<RegisterFormData>({
+    username: '',
+    email: '',
+    firstName: '',
+    lastName: '',
+    password: '',
+    confirmPassword: '',
+    currencyId: ''
+  })
+
+  const [validationError, setValidationError] = useState('')
+
+  // Fetch currencies on mount
+  useEffect(() => {
+    const fetchCurrencies = async () => {
+      try {
+        setCurrenciesLoading(true)
+        const data = await currenciesApi.getAll()
+        setCurrencies(data)
+        setCurrencyError(null)
+      } catch (err) {
+        setCurrencyError('Failed to load currencies')
+        console.error(err)
+      } finally {
+        setCurrenciesLoading(false)
+      }
+    }
+    fetchCurrencies()
+  }, [])
+
+  // Auto-select USD logic
+  useEffect(() => {
+    if (currencies.length > 0 && formData.currencyId === '') {
+      const defaultCurrency = currencies.find((c: Currency) => c.code === 'USD') || currencies[0]
+      setFormData(prev => ({ ...prev, currencyId: defaultCurrency.id }))
+    }
+  }, [currencies, formData.currencyId])
+
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    if (validationError) setValidationError('')
+    if (authError) clearError()
+    setFormData(prev => ({ ...prev, [name]: value }))
+  }
+
+  // Specialized handler for the custom currency dropdown
+  const handleCurrencyChange = (id: number) => {
+    setFormData(prev => ({ ...prev, currencyId: id }))
+    if (validationError) setValidationError('')
+  }
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    clearError()
     setValidationError('')
+    clearError()
 
-    if (password !== confirmPassword) {
+    if (formData.password !== formData.confirmPassword) {
       setValidationError('Passwords do not match')
       return
     }
 
-    if (password.length < 6) {
+    if (formData.password.length < 6) {
       setValidationError('Password must be at least 6 characters long')
       return
     }
 
+    if (!formData.currencyId) {
+      setValidationError('Please select a valid currency')
+      return
+    }
+
     try {
-      await register({ username, email, password, firstName, lastName, currencyId })
+      const { confirmPassword, currencyId, ...apiData } = formData
+      await register({ ...apiData, currencyId: Number(currencyId) })
       navigate('/dashboard')
     } catch (err) {
-      // Error is handled by the store
+      console.error("Registration failed", err)
     }
   }
 
+  const inputClasses = "w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 transition-all placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+  const labelClasses = "mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700"
+  const displayError = authError || validationError || currencyError
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-4">
-      <div className="w-full max-w-md">
-        {/* Logo and Header */}
-        <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg">
+      <div className="w-full max-w-md my-8">
+
+        {/* Header */}
+        <header className="mb-8 text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg shadow-indigo-500/30">
             <Wallet className="h-8 w-8 text-white" />
           </div>
-          <h1 className="text-4xl font-bold text-slate-900">Daily Finance</h1>
+          <h1 className="text-4xl font-bold tracking-tight text-slate-900">Daily Finance</h1>
           <p className="mt-2 text-slate-600">Start tracking your expenses today</p>
-        </div>
+        </header>
 
-        {/* Register Card */}
-        <div className="rounded-2xl bg-white p-8 shadow-xl">
+        {/* Card */}
+        <main className="rounded-2xl bg-white p-8 shadow-xl ring-1 ring-slate-900/5">
           <div className="mb-6">
             <h2 className="text-2xl font-bold text-slate-900">Create Account</h2>
-            <p className="mt-1 text-sm text-slate-600">Sign up to get started with Daily Finance</p>
+            <p className="mt-1 text-sm text-slate-600">Enter your details below to sign up</p>
           </div>
 
-          {(error || validationError) && (
-            <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
-              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-red-100">
-                <span className="text-xs font-bold">!</span>
-              </div>
-              <p className="text-sm font-medium">{error || validationError}</p>
+          {displayError && (
+            <div className="mb-6 flex animate-in fade-in slide-in-from-top-2 items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
+              <AlertCircle className="h-5 w-5 shrink-0" />
+              <p className="text-sm font-medium">{displayError}</p>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
+
+            {/* Username */}
             <div>
-              <label htmlFor="username" className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <User className="h-4 w-4" />
-                Username
-              </label>
-              <input
-                id="username"
-                type="text"
-                required
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 transition-all focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                placeholder="Choose a username"
-              />
+              <label htmlFor="username" className={labelClasses}><User className="h-4 w-4" /> Username</label>
+              <input id="username" name="username" type="text" required autoComplete="username"
+                     value={formData.username} onChange={handleChange} className={inputClasses} placeholder="Choose a username" />
             </div>
 
+            {/* Email */}
             <div>
-              <label htmlFor="email" className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <Mail className="h-4 w-4" />
-                Email Address
-              </label>
-              <input
-                id="email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 transition-all focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                placeholder="you@example.com"
-              />
+              <label htmlFor="email" className={labelClasses}><Mail className="h-4 w-4" /> Email Address</label>
+              <input id="email" name="email" type="email" required autoComplete="email"
+                     value={formData.email} onChange={handleChange} className={inputClasses} placeholder="you@example.com" />
             </div>
 
+            {/* Names */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label htmlFor="firstName" className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
-                  <User className="h-4 w-4" />
-                  First Name
-                </label>
-                <input
-                  id="firstName"
-                  type="text"
-                  required
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 transition-all focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                  placeholder="John"
-                />
+                <label htmlFor="firstName" className={labelClasses}><User className="h-4 w-4" /> First Name</label>
+                <input id="firstName" name="firstName" type="text" required autoComplete="given-name"
+                       value={formData.firstName} onChange={handleChange} className={inputClasses} placeholder="John" />
               </div>
               <div>
-                <label htmlFor="lastName" className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
-                  <User className="h-4 w-4" />
-                  Last Name
-                </label>
-                <input
-                  id="lastName"
-                  type="text"
-                  required
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 transition-all focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                  placeholder="Doe"
-                />
+                <label htmlFor="lastName" className={labelClasses}><User className="h-4 w-4" /> Last Name</label>
+                <input id="lastName" name="lastName" type="text" required autoComplete="family-name"
+                       value={formData.lastName} onChange={handleChange} className={inputClasses} placeholder="Doe" />
               </div>
             </div>
 
+            {/* Custom Currency Dropdown with Search */}
             <div>
-              <label htmlFor="currency" className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <Globe className="h-4 w-4" />
-                Currency
+              <label className={labelClasses}>
+                <Globe className="h-4 w-4" /> Currency
               </label>
-              <select
-                id="currency"
-                required
-                value={currencyId}
-                onChange={(e) => setCurrencyId(Number(e.target.value))}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 transition-all focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-              >
-                {SUPPORTED_CURRENCIES.map((currency) => (
-                  <option key={currency.id} value={currency.id}>
-                    {currency.symbol} {currency.name} ({currency.code})
-                  </option>
-                ))}
-              </select>
+              <CurrencySelect
+                currencies={currencies}
+                loading={currenciesLoading}
+                value={formData.currencyId}
+                onChange={handleCurrencyChange}
+              />
               <p className="mt-2 text-xs text-slate-500">
-                Select your preferred currency for tracking expenses
+                This will be the default currency for your dashboard.
               </p>
             </div>
 
+            {/* Passwords */}
             <div>
-              <label htmlFor="password" className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <Lock className="h-4 w-4" />
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 transition-all focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                placeholder="At least 6 characters"
-              />
+              <label htmlFor="password" className={labelClasses}><Lock className="h-4 w-4" /> Password</label>
+              <input id="password" name="password" type="password" required autoComplete="new-password"
+                     value={formData.password} onChange={handleChange} className={inputClasses} placeholder="At least 6 characters" />
+            </div>
+            <div>
+              <label htmlFor="confirmPassword" className={labelClasses}><Lock className="h-4 w-4" /> Confirm Password</label>
+              <input id="confirmPassword" name="confirmPassword" type="password" required autoComplete="new-password"
+                     value={formData.confirmPassword} onChange={handleChange} className={inputClasses} placeholder="Confirm your password" />
             </div>
 
-            <div>
-              <label
-                htmlFor="confirmPassword"
-                className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700"
-              >
-                <Lock className="h-4 w-4" />
-                Confirm Password
-              </label>
-              <input
-                id="confirmPassword"
-                type="password"
-                required
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 transition-all focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                placeholder="Confirm your password"
-              />
-            </div>
-
+            {/* Submit */}
             <button
               type="submit"
-              disabled={isLoading}
-              className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-3 font-medium text-white shadow-lg transition-all hover:scale-105 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
+              disabled={authLoading || currenciesLoading}
+              className="group mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-3 font-medium text-white shadow-lg shadow-indigo-500/25 transition-all hover:scale-[1.02] hover:shadow-indigo-500/40 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:scale-100"
             >
-              <UserPlus className="h-5 w-5" />
-              {isLoading ? 'Creating account...' : 'Sign Up'}
+              {authLoading ? (
+                <><Loader2 className="h-5 w-5 animate-spin" /> Creating account...</>
+              ) : (
+                <><UserPlus className="h-5 w-5 transition-transform group-hover:translate-x-1" /> Sign Up</>
+              )}
             </button>
           </form>
 
           <div className="mt-6 text-center">
             <p className="text-sm text-slate-600">
               Already have an account?{' '}
-              <Link
-                to="/login"
-                className="inline-flex items-center gap-1 font-semibold text-indigo-600 transition-colors hover:text-indigo-700"
-              >
-                <ArrowLeft className="h-3.5 w-3.5" />
-                Sign in
+              <Link to="/login" className="inline-flex items-center gap-1 font-semibold text-indigo-600 transition-colors hover:text-indigo-700 hover:underline">
+                <ArrowLeft className="h-3.5 w-3.5" /> Sign in
               </Link>
             </p>
           </div>
-        </div>
-
-        {/* Footer */}
-        <div className="mt-8 text-center text-sm text-slate-500">
-          <p>Join thousands of users tracking their expenses</p>
-        </div>
+        </main>
       </div>
     </div>
   )

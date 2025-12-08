@@ -4,9 +4,9 @@
  */
 
 import { userApi } from '@/api/user'
-import type { WalletResponse, Currency } from '@/types'
+import type { Wallet, Currency } from '@/types'
 
-type BalanceUpdateCallback = (balance: number, currency: Currency, wallet: WalletResponse) => void
+type BalanceUpdateCallback = (balance: number, currency: Currency, wallet: Wallet) => void
 
 /**
  * Singleton class for managing user balance state
@@ -33,14 +33,12 @@ export class BalanceManager {
     code: 'USD',
     name: 'US Dollar',
     symbol: '$',
-    createdAt: '',
-    updatedAt: '',
   }
-  private wallet: WalletResponse | null = null
+  private wallet: Wallet | null = null
   private subscribers: Set<BalanceUpdateCallback> = new Set()
   private isInitialized: boolean = false
   private isInitializing: boolean = false
-  private initializationPromise: Promise<WalletResponse | null> | null = null
+  private initializationPromise: Promise<Wallet | null> | null = null
 
   // Private constructor for singleton
   private constructor() {}
@@ -59,7 +57,7 @@ export class BalanceManager {
    * Initialize balance manager by fetching current wallet data
    * Should be called once when app loads (after authentication)
    */
-  public async initialize(): Promise<WalletResponse | null> {
+  public async initialize(): Promise<Wallet | null> {
     // If already initialized, return cached data
     if (this.isInitialized && this.wallet) {
       return this.wallet
@@ -76,7 +74,7 @@ export class BalanceManager {
       try {
         const walletData = await userApi.getWallet()
         this.wallet = walletData
-        this.balance = walletData.currentBalance
+        this.balance = walletData.amount
         this.currency = walletData.currency
         this.isInitialized = true
 
@@ -105,7 +103,7 @@ export class BalanceManager {
     try {
       const walletData = await userApi.getWallet()
       this.wallet = walletData
-      this.balance = walletData.currentBalance
+      this.balance = walletData.amount
       this.currency = walletData.currency
       this.isInitialized = true
 
@@ -163,7 +161,7 @@ export class BalanceManager {
   /**
    * Get full wallet data
    */
-  public getWallet(): WalletResponse | null {
+  public getWallet(): Wallet | null {
     return this.wallet
   }
 
@@ -195,7 +193,7 @@ export class BalanceManager {
   public updateBalanceOptimistic(delta: number): void {
     this.balance += delta
     if (this.wallet) {
-      this.wallet.currentBalance = this.balance
+      this.wallet.amount = this.balance
       this.notifySubscribers()
     }
   }
@@ -210,8 +208,6 @@ export class BalanceManager {
       code: 'USD',
       name: 'US Dollar',
       symbol: '$',
-      createdAt: '',
-      updatedAt: '',
     }
     this.wallet = null
     this.subscribers.clear()

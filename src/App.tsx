@@ -2,12 +2,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import LoginPage from '@/features/auth/LoginPage'
 import RegisterPage from '@/features/auth/RegisterPage'
 import DashboardPage from '@/features/dashboard/DashboardPage'
-import ExpenseListPage from '@/features/expenses/ExpenseListPage'
-import ExpenseFormPage from '@/features/expenses/ExpenseFormPage'
+import TransactionListPage from '@/features/expenses/TransactionListPage.tsx'
 import CategoryListPage from '@/features/categories/CategoryListPage'
-import CategoryFormPage from '@/features/categories/CategoryFormPage'
-import DepositPage from '@/features/deposit/DepositPage'
-import WithdrawPage from '@/features/withdraw/WithdrawPage'
 import WalletPage from '@/features/wallet/WalletPage'
 import ProtectedRoute from '@/routes/ProtectedRoute'
 
@@ -17,93 +13,10 @@ function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <DashboardPage />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/expenses"
-          element={
-            <ProtectedRoute>
-              <ExpenseListPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/expenses/new"
-          element={
-            <ProtectedRoute>
-              <ExpenseFormPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/expenses/:id/edit"
-          element={
-            <ProtectedRoute>
-              <ExpenseFormPage />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/deposit"
-          element={
-            <ProtectedRoute>
-              <DepositPage />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/withdraw"
-          element={
-            <ProtectedRoute>
-              <WithdrawPage />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/wallet"
-          element={
-            <ProtectedRoute>
-              <WalletPage />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/categories"
-          element={
-            <ProtectedRoute>
-              <CategoryListPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/categories/new"
-          element={
-            <ProtectedRoute>
-              <CategoryFormPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/categories/:id/edit"
-          element={
-            <ProtectedRoute>
-              <CategoryFormPage />
-            </ProtectedRoute>
-          }
-        />
-
+        <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+        <Route path="/transactions" element={<ProtectedRoute><TransactionListPage /></ProtectedRoute>} />
+        <Route path="/wallet" element={<ProtectedRoute><WalletPage /></ProtectedRoute>} />
+        <Route path="/categories" element={<ProtectedRoute><CategoryListPage /></ProtectedRoute>} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </BrowserRouter>

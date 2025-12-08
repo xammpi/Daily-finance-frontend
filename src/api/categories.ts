@@ -1,10 +1,6 @@
 import apiClient from './client'
-import type { Category, SearchRequest, PaginatedResponse } from '@/types'
-
-export interface CreateCategoryRequest {
-  name: string
-  description?: string
-}
+import type { SearchRequest, PaginatedResponse } from '@/types'
+import { Category, CategoryRequest } from '@/types/category.ts'
 
 export const categoriesApi = {
   /**
@@ -39,13 +35,13 @@ export const categoriesApi = {
     return response.data
   },
 
-  create: async (data: CreateCategoryRequest): Promise<Category> => {
-    const response = await apiClient.post<Category>('/categories', data)
+  create: async (data: CategoryRequest): Promise<CategoryRequest> => {
+    const response = await apiClient.post<CategoryRequest>('/categories', data)
     return response.data
   },
 
-  update: async (id: number, data: Partial<CreateCategoryRequest>): Promise<Category> => {
-    const response = await apiClient.put<Category>(`/categories/${id}`, data)
+  update: async (id: number, data: Partial<CategoryRequest>): Promise<CategoryRequest> => {
+    const response = await apiClient.put<CategoryRequest>(`/categories/${id}`, data)
     return response.data
   },
 

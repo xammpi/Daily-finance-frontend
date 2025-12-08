@@ -1,5 +1,5 @@
 import { ReactNode } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard,
   Receipt,
@@ -12,30 +12,21 @@ import { useAuth } from '@/hooks/useAuth'
 
 interface LayoutProps {
   children: ReactNode
-  onAddExpense?: () => void
+  onAddTransaction?: () => void
 }
 
-export default function Layout({ children, onAddExpense }: LayoutProps) {
+export default function Layout({ children, onAddTransaction }: LayoutProps) {
   const location = useLocation()
-  const navigate = useNavigate()
   const { user, logout } = useAuth()
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Wallet', href: '/wallet', icon: Wallet },
-    { name: 'Expenses', href: '/expenses', icon: Receipt },
+    { name: 'Transactions', href: '/transactions', icon: Receipt },
     { name: 'Categories', href: '/categories', icon: FolderOpen },
   ]
 
   const isActive = (path: string) => location.pathname === path
-
-  const handleQuickExpense = () => {
-    if (onAddExpense) {
-      onAddExpense()
-    } else {
-      navigate('/expenses/new')
-    }
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
@@ -106,7 +97,7 @@ export default function Layout({ children, onAddExpense }: LayoutProps) {
 
       {/* Floating Action Button */}
       <button
-        onClick={handleQuickExpense}
+        onClick={onAddTransaction}
         className="fixed bottom-8 right-8 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-2xl transition-transform hover:scale-110 hover:shadow-indigo-500/50"
         title="Add Expense"
       >

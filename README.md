@@ -78,19 +78,19 @@ src/
 ├── api/                    # API client and endpoints
 │   ├── client.ts          # Axios client with JWT interceptors
 │   ├── auth.ts            # Authentication (login, register)
-│   ├── expenses.ts        # Expense CRUD + search
+│   ├── transaction.ts        # Expense CRUD + search
 │   ├── categories.ts      # Category CRUD + search
 │   ├── currencies.ts      # Currency list (public)
 │   └── user.ts            # User profile, wallet, deposit, withdraw
 ├── components/            # Reusable components
 │   ├── Layout.tsx         # Sidebar layout with FAB
-│   ├── ExpenseModal.tsx   # Modal for add/edit expenses
+│   ├── TransactionModal.tsx   # Modal for add/edit expenses
 │   ├── FilterBuilder.tsx  # Generic filter UI
 │   └── ProtectedRoute.tsx # Auth guard
 ├── features/              # Feature-based modules
 │   ├── auth/              # LoginPage, RegisterPage
 │   ├── dashboard/         # DashboardPage
-│   ├── expenses/          # ExpenseListPage, ExpenseFormPage
+│   ├── expenses/          # TransactionListPage, TransactionFormPage
 │   ├── categories/        # CategoryListPage, CategoryFormPage
 │   ├── wallet/            # WalletPage
 │   ├── deposit/           # DepositPage
