@@ -2,8 +2,11 @@ import { useState, useEffect, FormEvent } from 'react'
 import { X, Receipt, DollarSign, Calendar, FileText, Tag, Save } from 'lucide-react'
 import { transactionApi } from '@/api/transaction.ts'
 import { categoriesApi } from '@/api/categories'
+import { userApi } from '@/api/user'
 import { Transaction } from '@/types/transaction.ts'
-import { Category } from '@/types/category.ts'
+import { Category, CategoryType } from '@/types/category.ts'
+import { toast } from '@/lib/toast'
+import { hasSufficientBalance } from '@/lib/currency'
 
 interface TransactionModalProps {
   isOpen: boolean
@@ -21,6 +24,7 @@ export default function TransactionModal({ isOpen, onClose, onSuccess, transacti
   const [categoryId, setCategoryId] = useState('')
 
   const [categories, setCategories] = useState<Category[]>([])
+  const [currentBalance, setCurrentBalance] = useState<number>(0)
 
   const [isLoading, setIsLoading] = useState(false)
   const [isFetching, setIsFetching] = useState(false)
@@ -35,8 +39,12 @@ export default function TransactionModal({ isOpen, onClose, onSuccess, transacti
   const fetchData = async () => {
     try {
       setIsFetching(true)
-      const categoriesData = await categoriesApi.getAll()
+      const [categoriesData, wallet] = await Promise.all([
+        categoriesApi.getAll(),
+        userApi.getWallet()
+      ])
       setCategories(categoriesData)
+      setCurrentBalance(wallet.amount)
 
       if (transactionId) {
         const expense: Transaction = await transactionApi.getById(transactionId)
@@ -69,17 +77,38 @@ export default function TransactionModal({ isOpen, onClose, onSuccess, transacti
       categoryId: Number(categoryId),
     }
 
+    // Check category type and validate balance for expenses
+    const selectedCategory = categories.find(c => c.id === Number(categoryId))
+    if (selectedCategory?.type === CategoryType.EXPENSE && !isEditMode) {
+      if (!hasSufficientBalance(currentBalance, transactionExpenseData.amount)) {
+        const balance = currentBalance ?? 0
+        setError(`Insufficient balance. You have $${balance.toFixed(2)}, but need $${transactionExpenseData.amount.toFixed(2)}`)
+        toast.error('Insufficient balance for this expense')
+        return
+      }
+    }
+
     try {
       setIsLoading(true)
       if (isEditMode && transactionId) {
         await transactionApi.update(transactionId, transactionExpenseData)
+        toast.success('Transaction updated successfully')
       } else {
         await transactionApi.create(transactionExpenseData)
+        toast.success('Transaction created successfully')
       }
       onSuccess()
       handleClose()
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to save expense')
+      const errorMessage = err.response?.data?.message || 'Failed to save transaction'
+      setError(errorMessage)
+
+      // Check if it's an insufficient balance error from backend
+      if (errorMessage.toLowerCase().includes('insufficient balance')) {
+        toast.error(errorMessage)
+      } else {
+        toast.error('Failed to save transaction')
+      }
       console.error(err)
     } finally {
       setIsLoading(false)

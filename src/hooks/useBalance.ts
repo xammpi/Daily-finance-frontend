@@ -35,17 +35,31 @@ interface UseBalanceReturn {
  * }
  */
 export function useBalance(): UseBalanceReturn {
-  const [balance, setBalance] = useState<number>(balanceManager.getBalance())
-  const [currency, setCurrency] = useState<Currency>(balanceManager.getCurrency())
-  const [wallet, setWallet] = useState<Wallet | null>(balanceManager.getWallet())
-  const [isLoading, setIsLoading] = useState<boolean>(false)
+  const [balance, setBalance] = useState<number>(0)
+  const [currency, setCurrency] = useState<Currency>({
+    id: 1,
+    code: 'USD',
+    name: 'US Dollar',
+    symbol: '$',
+  })
+  const [wallet, setWallet] = useState<Wallet | null>(null)
+  const [isLoading, setIsLoading] = useState<boolean>(true)
 
   useEffect(() => {
-    // Initialize if not already done
+    // Initialize and subscribe
     const initialize = async () => {
-      if (!balanceManager.getWallet()) {
-        setIsLoading(true)
-        await balanceManager.initialize()
+      setIsLoading(true)
+      try {
+        const walletData = await balanceManager.initialize()
+        if (walletData) {
+          console.log('Balance initialized:', walletData)
+          setBalance(walletData.amount)
+          setCurrency(walletData.currency)
+          setWallet(walletData)
+        }
+      } catch (error) {
+        console.error('Failed to initialize balance:', error)
+      } finally {
         setIsLoading(false)
       }
     }
@@ -54,9 +68,11 @@ export function useBalance(): UseBalanceReturn {
 
     // Subscribe to balance updates
     const unsubscribe = balanceManager.subscribe((newBalance, newCurrency, newWallet) => {
+      console.log('Balance updated via subscription:', newBalance, newWallet)
       setBalance(newBalance)
       setCurrency(newCurrency)
       setWallet(newWallet)
+      setIsLoading(false)
     })
 
     // Cleanup subscription on unmount

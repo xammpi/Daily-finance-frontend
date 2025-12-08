@@ -26,6 +26,7 @@ import { CriteriaBuilder } from '@/utils/CriteriaBuilder'
 import type { PaginatedResponse } from '@/types'
 import { Transaction } from '@/types/transaction.ts'
 import { Category } from '@/types/category.ts'
+import { useWallet } from '@/hooks/useWallet.ts'
 
 // Local filter interface for transaction filtering
 interface TransactionFilterParams {

@@ -16,8 +16,20 @@ export const userApi = {
    * @returns Wallet with currency object and transaction stats
    */
   async getWallet(): Promise<Wallet> {
-    const response = await apiClient.get<Wallet>('/user/wallet')
-    return response.data
+    const response = await apiClient.get<any>('/user/wallet')
+    // Transform backend response to match frontend Wallet type
+    const data = response.data
+    return {
+      id: data.walletId || data.id,
+      amount: data.currentBalance ?? data.amount ?? 0,
+      currency: data.currency,
+      totalDeposits: data.totalDeposits || 0,
+      totalDepositAmount: data.totalDepositAmount || 0,
+      totalExpenses: data.totalExpenses || 0,
+      totalExpenseAmount: data.totalExpenseAmount || 0,
+      lastTransactionDate: data.lastTransactionDate,
+      lowBalanceWarning: data.lowBalanceWarning || false,
+    }
   },
 
   /**

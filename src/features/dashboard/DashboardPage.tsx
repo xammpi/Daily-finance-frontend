@@ -16,6 +16,7 @@ import TransactionModal from '@/components/TransactionModal.tsx'
 import { formatCurrency, formatDateShort } from '@/utils'
 import type { ExpenseStatistics } from '@/types'
 import { Transaction } from '@/types/transaction.ts'
+import { toast } from '@/lib/toast'
 
 export default function DashboardPage() {
   const { wallet, refresh: refreshBalance, isLoading: isBalanceLoading } = useBalance()
@@ -23,6 +24,13 @@ export default function DashboardPage() {
   const [statistics, setStatistics] = useState<ExpenseStatistics | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
+
+  // Debug wallet data
+  useEffect(() => {
+    if (wallet) {
+      console.log('Wallet data:', wallet)
+    }
+  }, [wallet])
 
   useEffect(() => {
     fetchDashboardData()
@@ -35,9 +43,26 @@ export default function DashboardPage() {
         transactionApi.getAll(),
         transactionApi.getStatistics(),
       ])
+
+      console.log('Dashboard data fetched:', {
+        expensesCount: expensesData.length,
+        statistics: stats
+      })
+
       setExpenses(expensesData.slice(0, 5))
       setStatistics(stats)
-    }  finally {
+    } catch (error: any) {
+      console.error('Failed to fetch dashboard data:', error)
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      })
+
+      toast.error('Failed to load dashboard data. Please check if the backend is running.')
+      setExpenses([])
+      setStatistics(null)
+    } finally {
       setIsLoading(false)
     }
   }
