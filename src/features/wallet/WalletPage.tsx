@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Wallet,
@@ -6,22 +5,15 @@ import {
   TrendingDown,
   DollarSign,
   AlertCircle,
-  Settings,
   Receipt,
   Activity
 } from 'lucide-react'
 import { useBalance } from '@/hooks/useBalance'
 import { formatCurrency } from '@/utils'
 import Layout from '@/components/Layout'
-import WalletManagerModal from '@/components/WalletManagerModal'
 
 export default function WalletPage() {
-  const { wallet, refresh, isLoading } = useBalance()
-  const [isModalOpen, setIsModalOpen] = useState(false)
-
-  const handleModalSuccess = async () => {
-    await refresh()
-  }
+  const { wallet, isLoading } = useBalance()
 
   if (isLoading) {
     return (
@@ -57,9 +49,22 @@ export default function WalletPage() {
     <Layout>
       <div className="space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Wallet Management</h1>
-          <p className="mt-1 text-slate-600">View and manage your wallet details</p>
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-500 via-purple-500 to-purple-600 p-8 text-white shadow-2xl">
+          {/* Decorative Circles */}
+          <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/10" />
+          <div className="absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-white/5" />
+
+          <div className="relative flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/20 shadow-lg backdrop-blur-sm">
+                <Wallet className="h-8 w-8" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold">Wallet Management</h1>
+                <p className="mt-1 text-sm text-white/90">View and manage your wallet details</p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Low Balance Warning */}
@@ -71,136 +76,123 @@ export default function WalletPage() {
               <p className="mt-1 text-sm text-orange-600">
                 Your balance is below {currencySymbol}100. Consider adding funds to continue tracking expenses.
               </p>
-              <div className="mt-3 flex gap-2">
-                <button
-                  onClick={() => setIsModalOpen(true)}
-                  className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-orange-700"
-                >
-                  <Settings className="h-4 w-4" />
-                  Manage Wallet
-                </button>
-              </div>
             </div>
           </div>
         )}
 
         {/* Main Balance Card */}
-        <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 p-8 text-white shadow-lg">
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="mb-2 flex items-center gap-2">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/20">
-                  <Wallet className="h-6 w-6" />
-                </div>
-                <div>
-                  <p className="text-sm opacity-90">Current Balance</p>
-                  <p className="text-xs opacity-75">{wallet.currency.name}</p>
-                </div>
-              </div>
-              <p className="text-5xl font-bold">
-                {formatCurrency(wallet.amount, currencyCode)}
-              </p>
-              <p className="mt-2 text-sm opacity-75">
-                Last transaction: {wallet.lastTransactionDate ? new Date(wallet.lastTransactionDate).toLocaleDateString() : 'No transactions yet'}
-              </p>
-            </div>
-            <div className="rounded-xl bg-white/10 p-4">
-              <p className="text-xs opacity-75">Currency</p>
-              <p className="text-2xl font-bold">{currencyCode}</p>
-            </div>
-          </div>
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-500 to-purple-600 p-10 text-white shadow-2xl">
+          <div className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-white/10" />
+          <div className="absolute -bottom-8 -left-8 h-40 w-40 rounded-full bg-white/5" />
 
-          {/* Quick Actions */}
-          <div className="mt-6">
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="flex w-full items-center justify-center gap-2 rounded-xl
-               bg-white/20 px-6 py-3 font-medium backdrop-blur-sm transition-all hover:bg-white/30">
-              <Settings className="h-5 w-5" />Wallet Manager</button>
+          <div className="relative">
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="mb-4 flex items-center gap-3">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-white/20 shadow-lg backdrop-blur-sm">
+                    <Wallet className="h-7 w-7" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold opacity-90">Current Balance</p>
+                    <p className="text-xs opacity-75">{wallet.currency.name}</p>
+                  </div>
+                </div>
+                <p className="text-6xl font-bold tracking-tight">
+                  {formatCurrency(wallet.amount, currencyCode)}
+                </p>
+                <p className="mt-4 text-sm font-medium opacity-90">
+                  Last transaction: {wallet.lastTransactionDate ? new Date(wallet.lastTransactionDate).toLocaleDateString() : 'No transactions yet'}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-white/10 p-6 backdrop-blur-sm">
+                <p className="text-xs font-semibold opacity-75">Currency</p>
+                <p className="text-4xl font-bold">{currencyCode}</p>
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Statistics Grid */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {/* Total Deposits */}
-          <div className="rounded-2xl bg-white p-6 shadow-lg">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-100">
-                <TrendingUp className="h-6 w-6 text-emerald-600" />
+          <div className="group relative overflow-hidden rounded-2xl bg-white p-6 shadow-xl transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl">
+            <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-emerald-50" />
+            <div className="absolute -left-4 -bottom-4 h-24 w-24 rounded-full bg-emerald-50/50" />
+            <div className="relative">
+              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg">
+                <TrendingUp className="h-5 w-5 text-white" />
               </div>
-              <div>
-                <p className="text-sm text-slate-600">Total Deposits</p>
-                <p className="text-2xl font-bold text-slate-900">{wallet.totalDeposits}</p>
+              <p className="text-xs font-semibold text-slate-600">Total Deposits</p>
+              <p className="truncate text-xl font-bold text-slate-900 lg:text-2xl">{wallet.totalDeposits}</p>
+              <div className="mt-3 rounded-xl bg-emerald-50 p-3">
+                <p className="text-xs font-semibold text-emerald-600">Amount Deposited</p>
+                <p className="truncate text-base font-bold text-emerald-900">
+                  {formatCurrency(wallet.totalDepositAmount, currencyCode)}
+                </p>
               </div>
-            </div>
-            <div className="mt-4 rounded-lg bg-emerald-50 p-3">
-              <p className="text-xs text-emerald-600">Amount Deposited</p>
-              <p className="text-lg font-semibold text-emerald-900">
-                {formatCurrency(wallet.totalDepositAmount, currencyCode)}
-              </p>
             </div>
           </div>
 
           {/* Total Transactions */}
-          <div className="rounded-2xl bg-white p-6 shadow-lg">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-100">
-                <TrendingDown className="h-6 w-6 text-red-600" />
+          <div className="group relative overflow-hidden rounded-2xl bg-white p-6 shadow-xl transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl">
+            <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-red-50" />
+            <div className="absolute -left-4 -bottom-4 h-24 w-24 rounded-full bg-red-50/50" />
+            <div className="relative">
+              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-red-500 to-orange-600 shadow-lg">
+                <TrendingDown className="h-7 w-7 text-white" />
               </div>
-              <div>
-                <p className="text-sm text-slate-600">Total Transaction</p>
-                <p className="text-2xl font-bold text-slate-900">{wallet.totalExpenses}</p>
+              <p className="text-sm font-semibold text-slate-600">Total Transactions</p>
+              <p className="text-3xl font-bold text-slate-900">{wallet.totalExpenses}</p>
+              <div className="mt-4 rounded-xl bg-red-50 p-3">
+                <p className="text-xs font-semibold text-red-600">Amount Spent</p>
+                <p className="text-lg font-bold text-red-900">
+                  {formatCurrency(wallet.totalExpenseAmount, currencyCode)}
+                </p>
               </div>
-            </div>
-            <div className="mt-4 rounded-lg bg-red-50 p-3">
-              <p className="text-xs text-red-600">Amount Spent</p>
-              <p className="text-lg font-semibold text-red-900">
-                {formatCurrency(wallet.totalExpenseAmount, currencyCode)}
-              </p>
             </div>
           </div>
 
           {/* Net Balance */}
-          <div className="rounded-2xl bg-white p-6 shadow-lg">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100">
-                <Activity className="h-6 w-6 text-blue-600" />
+          <div className="group relative overflow-hidden rounded-2xl bg-white p-6 shadow-xl transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl">
+            <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-blue-50" />
+            <div className="absolute -left-4 -bottom-4 h-24 w-24 rounded-full bg-blue-50/50" />
+            <div className="relative">
+              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg">
+                <Activity className="h-7 w-7 text-white" />
               </div>
-              <div>
-                <p className="text-sm text-slate-600">Net Activity</p>
-                <p className="text-2xl font-bold text-slate-900">
-                  {wallet.totalDeposits + wallet.totalExpenses}
+              <p className="text-sm font-semibold text-slate-600">Net Activity</p>
+              <p className="text-3xl font-bold text-slate-900">
+                {wallet.totalDeposits + wallet.totalExpenses}
+              </p>
+              <div className="mt-4 rounded-xl bg-blue-50 p-3">
+                <p className="text-xs font-semibold text-blue-600">Total Transactions</p>
+                <p className="text-lg font-bold text-blue-900">
+                  {wallet.totalDeposits} in / {wallet.totalExpenses} out
                 </p>
               </div>
-            </div>
-            <div className="mt-4 rounded-lg bg-blue-50 p-3">
-              <p className="text-xs text-blue-600">Total Transactions</p>
-              <p className="text-lg font-semibold text-blue-900">
-                {wallet.totalDeposits} in / {wallet.totalExpenses} out
-              </p>
             </div>
           </div>
 
           {/* Average Expense */}
-          <div className="rounded-2xl bg-white p-6 shadow-lg">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-100">
-                <DollarSign className="h-6 w-6 text-purple-600" />
+          <div className="group relative overflow-hidden rounded-2xl bg-white p-6 shadow-xl transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl">
+            <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-purple-50" />
+            <div className="absolute -left-4 -bottom-4 h-24 w-24 rounded-full bg-purple-50/50" />
+            <div className="relative">
+              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 shadow-lg">
+                <DollarSign className="h-7 w-7 text-white" />
               </div>
-              <div>
-                <p className="text-sm text-slate-600">Avg Expense</p>
-                <p className="text-2xl font-bold text-slate-900">
-                  {wallet.totalExpenses > 0
-                    ? formatCurrency(wallet.totalExpenseAmount / wallet.totalExpenses, currencyCode)
-                    : formatCurrency(0, currencyCode)}
+              <p className="text-sm font-semibold text-slate-600">Avg Expense</p>
+              <p className="text-3xl font-bold text-slate-900">
+                {wallet.totalExpenses > 0
+                  ? formatCurrency(wallet.totalExpenseAmount / wallet.totalExpenses, currencyCode)
+                  : formatCurrency(0, currencyCode)}
+              </p>
+              <div className="mt-4 rounded-xl bg-purple-50 p-3">
+                <p className="text-xs font-semibold text-purple-600">Per Transaction</p>
+                <p className="text-lg font-bold text-purple-900">
+                  {wallet.totalExpenses} transactions
                 </p>
               </div>
-            </div>
-            <div className="mt-4 rounded-lg bg-purple-50 p-3">
-              <p className="text-xs text-purple-600">Per Transaction</p>
-              <p className="text-lg font-semibold text-purple-900">
-                {wallet.totalExpenses} transactions
-              </p>
             </div>
           </div>
         </div>
@@ -295,22 +287,9 @@ export default function WalletPage() {
         {/* Quick Actions Section */}
         <div className="rounded-2xl bg-white p-6 shadow-lg">
           <h2 className="mb-4 text-xl font-bold text-slate-900">Quick Actions</h2>
-          <div className="grid gap-4 md:grid-cols-2">
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="group flex items-center gap-4 rounded-xl border border-indigo-200 bg-indigo-50 p-4 text-left transition-all hover:border-indigo-300 hover:shadow-md"
-            >
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-100 transition-transform group-hover:scale-110">
-                <Settings className="h-6 w-6 text-indigo-600" />
-              </div>
-              <div>
-                <p className="font-semibold text-indigo-900">Manage Wallet</p>
-                <p className="text-sm text-indigo-600">Deposit or withdraw funds</p>
-              </div>
-            </button>
-
+          <div className="grid gap-4 md:grid-cols-1">
             <Link
-              to="/expenses"
+              to="/transactions"
               className="group flex items-center gap-4 rounded-xl border border-purple-200 bg-purple-50 p-4 transition-all hover:border-purple-300 hover:shadow-md"
             >
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-100 transition-transform group-hover:scale-110">
@@ -324,16 +303,6 @@ export default function WalletPage() {
           </div>
         </div>
       </div>
-
-      {/* Wallet Manager Modal */}
-      <WalletManagerModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSuccess={handleModalSuccess}
-        amount={wallet.amount}
-        currencyCode={wallet.currency.code}
-        currencySymbol={wallet.currency.symbol}
-      />
     </Layout>
   )
 }

@@ -1,4 +1,4 @@
-import { ReactNode } from 'react'
+import { ReactNode, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -6,7 +6,9 @@ import {
   FolderOpen,
   LogOut,
   Plus,
-  Wallet
+  Wallet,
+  Menu,
+  X
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 
@@ -18,6 +20,7 @@ interface LayoutProps {
 export default function Layout({ children, onAddTransaction }: LayoutProps) {
   const location = useLocation()
   const { user, logout } = useAuth()
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -28,20 +31,51 @@ export default function Layout({ children, onAddTransaction }: LayoutProps) {
 
   const isActive = (path: string) => location.pathname === path
 
+  const handleNavClick = () => {
+    setIsMobileMenuOpen(false)
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+      {/* Mobile Menu Button */}
+      <button
+        onClick={() => setIsMobileMenuOpen(true)}
+        className="fixed left-4 top-4 z-50 flex h-12 w-12 items-center justify-center rounded-xl bg-white text-slate-700 shadow-lg transition-all hover:bg-slate-50 md:hidden"
+      >
+        <Menu className="h-6 w-6" />
+      </button>
+
+      {/* Mobile Backdrop */}
+      {isMobileMenuOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-slate-200 bg-white shadow-lg">
+      <aside className={`fixed left-0 top-0 z-50 h-screen w-64 border-r border-slate-200 bg-white shadow-lg transition-transform duration-300 md:translate-x-0 ${
+        isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}>
         <div className="flex h-full flex-col">
           {/* Logo */}
-          <div className="flex h-16 items-center gap-3 border-b border-slate-200 px-6">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg">
-              <Wallet className="h-6 w-6 text-white" />
+          <div className="flex h-16 items-center justify-between border-b border-slate-200 px-6">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg">
+                <Wallet className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-lg font-bold text-slate-900">Daily Finance</h1>
+                <p className="text-xs text-slate-500">Track your expenses</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-lg font-bold text-slate-900">Daily Finance</h1>
-              <p className="text-xs text-slate-500">Track your expenses</p>
-            </div>
+            {/* Close button - mobile only */}
+            <button
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 md:hidden"
+            >
+              <X className="h-5 w-5" />
+            </button>
           </div>
 
           {/* Navigation */}
@@ -53,6 +87,7 @@ export default function Layout({ children, onAddTransaction }: LayoutProps) {
                 <Link
                   key={item.name}
                   to={item.href}
+                  onClick={handleNavClick}
                   className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${
                     active
                       ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md'
@@ -68,7 +103,10 @@ export default function Layout({ children, onAddTransaction }: LayoutProps) {
 
           {/* User Profile */}
           <div className="border-t border-slate-200 p-4">
-            <div className="mb-3 flex items-center gap-3 rounded-lg bg-slate-50 p-3">
+            <Link
+              to="/account"
+              className="mb-3 flex items-center gap-3 rounded-lg bg-slate-50 p-3 transition-all hover:bg-slate-100"
+            >
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-sm font-bold text-white">
                 {user?.username?.charAt(0).toUpperCase() || 'U'}
               </div>
@@ -78,7 +116,7 @@ export default function Layout({ children, onAddTransaction }: LayoutProps) {
                 </p>
                 <p className="truncate text-xs text-slate-500">{user?.email || ''}</p>
               </div>
-            </div>
+            </Link>
             <button
               onClick={logout}
               className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
@@ -91,18 +129,20 @@ export default function Layout({ children, onAddTransaction }: LayoutProps) {
       </aside>
 
       {/* Main Content */}
-      <div className="pl-64">
-        <main className="min-h-screen p-8">{children}</main>
+      <div className="md:pl-64">
+        <main className="min-h-screen p-4 pt-20 md:p-8 md:pt-8">{children}</main>
       </div>
 
-      {/* Floating Action Button */}
-      <button
-        onClick={onAddTransaction}
-        className="fixed bottom-8 right-8 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-2xl transition-transform hover:scale-110 hover:shadow-indigo-500/50"
-        title="Add Expense"
-      >
-        <Plus className="h-6 w-6" />
-      </button>
+      {/* Floating Action Button - Only show if onAddTransaction is provided */}
+      {onAddTransaction && (
+        <button
+          onClick={onAddTransaction}
+          className="fixed bottom-4 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-2xl transition-transform hover:scale-110 hover:shadow-indigo-500/50 md:bottom-8 md:right-8"
+          title="Add Transaction"
+        >
+          <Plus className="h-6 w-6" />
+        </button>
+      )}
     </div>
   )
 }

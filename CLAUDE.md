@@ -10,11 +10,14 @@ Daily Finance Frontend — modern, beautiful web application for tracking daily 
 - User authentication (JWT-based login/registration)
 - Dashboard with financial overview and recent expenses
 - Expense management via modal dialog (create, edit, delete)
-- Category management with colorful visual design
+- Category management with colorful visual design and FAB
 - User balance tracking with deposit functionality
-- Floating action button for quick expense creation
-- Search and filter functionality
-- Responsive design (mobile, tablet, desktop)
+- Floating action buttons (FAB) for quick transaction/category creation
+- Advanced search and filter functionality with horizontal scroll on mobile
+- Fully responsive design (mobile, tablet, desktop)
+- Custom confirmation dialogs (replacing browser alerts)
+- Fixed modal footers with always-visible Save/Cancel buttons
+- Mobile-optimized navigation with hamburger menu
 - Network-accessible for mobile testing
 
 ### Technology Highlights
@@ -101,6 +104,8 @@ src/
 ├── components/              # Reusable components
 │   ├── Layout.tsx           # Sidebar layout with navigation ✅
 │   ├── TransactionModal.tsx     # Modal for create/edit expenses ✅
+│   ├── CategoryModal.tsx    # Modal for create/edit categories ✅
+│   ├── ConfirmDialog.tsx    # Custom confirmation dialog (replaces alerts) ✅
 │   └── ProtectedRoute.tsx   # Auth guard ✅ (moved from routes/)
 ├── features/                # Feature-based modules
 │   ├── auth/                # Authentication pages ✅
@@ -132,10 +137,13 @@ src/
 - `src/api/client.ts` - Axios client with JWT interceptors
 - `src/api/transaction.ts` - Expense API calls (getAll, create, update, delete)
 - `src/api/user.ts` - User API (profile, deposit, balance-summary)
-- `src/components/Layout.tsx` - Sidebar layout with navigation and FAB
-- `src/components/TransactionModal.tsx` - Modal for adding/editing expenses
+- `src/components/Layout.tsx` - Sidebar layout with responsive navigation and FAB
+- `src/components/TransactionModal.tsx` - Modal for adding/editing expenses (fixed footer)
+- `src/components/CategoryModal.tsx` - Modal for adding/editing categories (fixed footer)
+- `src/components/ConfirmDialog.tsx` - Custom confirmation dialog with Yes/No buttons
 - `src/store/authStore.ts` - Zustand store for authentication state
 - `src/types/index.ts` - TypeScript interfaces matching backend DTOs
+- `src/index.css` - Global styles with Tailwind and scrollbar-hide utility
 
 ## Backend API Integration (V2.0.0)
 
@@ -320,31 +328,42 @@ export interface DepositRequest {
 - **Primary Actions**: Gradient from indigo-500 to purple-600
 - **Expenses**: Red-500 to orange-600 (negative/outgoing money)
 - **Deposits**: Emerald-500 to teal-600 (positive/incoming money)
-- **Categories**: 13 different gradient combinations for visual distinction
+- **Categories**: 12 cohesive indigo-purple-blue gradient combinations
 - **Backgrounds**: slate-50 via blue-50 to indigo-50
+- **Danger Actions**: Red-500 to orange-600 (delete confirmations)
 
 ### Component Patterns
 
 #### 1. Layout Component
 All authenticated pages use `<Layout>` component:
 ```typescript
-<Layout onAddExpense={() => handleOpenModal()}>
+<Layout onAddTransaction={() => handleOpenModal()}>
   {/* Page content */}
 </Layout>
 ```
-- Sidebar navigation (Dashboard, Expenses, Categories, Deposit)
+- **Desktop**: Fixed sidebar navigation (Dashboard, Transactions, Categories, Wallet)
+- **Mobile**: Hamburger menu with slide-in drawer navigation
 - User profile section with logout
-- Floating action button (FAB) for quick expense creation
-- Optional `onAddExpense` callback for modal integration
+- Floating action button (FAB) for quick transaction/category creation
+- Optional `onAddTransaction` callback for FAB integration
+- Auto-close navigation on mobile when link is clicked
+- Dark backdrop overlay on mobile
 
-#### 2. Modal Pattern for Expenses
-Instead of navigating to a form page, expenses use a modal:
+#### 2. Modal Pattern for Transactions & Categories
+Instead of navigating to a form page, modals are used:
 ```typescript
 <TransactionModal
   isOpen={isModalOpen}
   onClose={handleCloseModal}
   onSuccess={handleModalSuccess}
-  expenseId={editingExpenseId} // undefined for create, number for edit
+  transactionId={editingTransactionId} // undefined for create, number for edit
+/>
+
+<CategoryModal
+  isOpen={isModalOpen}
+  onClose={handleCloseModal}
+  onSuccess={handleModalSuccess}
+  categoryId={editingCategoryId} // undefined for create, number for edit
 />
 ```
 Benefits:
@@ -352,25 +371,64 @@ Benefits:
 - Faster interaction
 - Better mobile UX
 - Backdrop blur effect
+- **Fixed footer** with always-visible Save/Cancel buttons
+- Scrollable form content area
+- Simple button labels: "Save" and "Cancel" (not "Create/Update Transaction")
+- Body scroll lock when modal is open
 
-#### 3. Card-Based Layouts
+#### 3. Confirmation Dialog Pattern
+Custom confirmation dialogs replace browser alerts:
+```typescript
+<ConfirmDialog
+  isOpen={isConfirmOpen}
+  onClose={() => setIsConfirmOpen(false)}
+  onConfirm={handleConfirmDelete}
+  title="Delete Transaction"
+  message="Are you sure you want to delete this transaction?"
+  confirmText="Yes, Delete"
+  cancelText="No, Cancel"
+  variant="danger" // or "warning" or "info"
+/>
+```
+Benefits:
+- Beautiful, branded UI instead of browser defaults
+- Customizable titles, messages, and button text
+- Three variants: danger (red), warning (amber), info (indigo/purple)
+- Gradient headers matching app design
+- Body scroll lock when open
+- Used for all delete operations (transactions, categories)
+
+#### 4. Card-Based Layouts
 - Dashboard uses stat cards with gradients
-- Expenses grouped by date with card containers
-- Categories in colorful grid layout
+- Transactions grouped by date with responsive card containers
+- **Mobile**: Cards stack vertically with icon+description on top, amount+buttons below
+- **Desktop**: Cards use horizontal layout
+- Categories in colorful grid layout (responsive columns)
 - All cards have hover effects and shadows
 
-#### 4. Icons Throughout
+#### 5. Responsive Filter Controls
+Search and filter controls adapt to screen size:
+- **Mobile**: Stack vertically with horizontal scroll for filter/sort buttons
+- **Desktop**: Horizontal layout with all controls visible
+- Filter buttons use `overflow-x-auto` with `scrollbar-hide`
+- Quick filter chips (Today, Week, Month) scroll horizontally on mobile
+- `flex-shrink-0` prevents button compression
+- Negative margins (`-mx-4`) extend scroll area edge-to-edge
+
+#### 6. Icons Throughout
 Using lucide-react for consistent iconography:
 - `Wallet` - Finance/money/balance
-- `Receipt` - Expenses
+- `Receipt` - Transactions
 - `FolderOpen` / `Tag` - Categories
 - `PiggyBank` - Deposits/savings
-- `TrendingDown` - Expense items
-- `Plus` - Create actions
+- `TrendingDown` / `TrendingUp` - Transaction type indicators
+- `Plus` - Create actions (FAB)
 - `Edit2` / `Trash2` - Item actions
 - `Save` - Form submissions
+- `AlertTriangle` - Confirmation dialogs
+- `Menu` / `X` - Mobile navigation toggle
 
-#### 5. Form Styling
+#### 7. Form Styling
 Modern form inputs with:
 ```typescript
 className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3
@@ -382,7 +440,7 @@ className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3
 - Focus states with indigo ring
 - Icons in labels
 
-#### 6. Button Styling
+#### 8. Button Styling
 Gradient buttons for primary actions:
 ```typescript
 className="flex items-center justify-center gap-2 rounded-xl
@@ -391,6 +449,25 @@ className="flex items-center justify-center gap-2 rounded-xl
   disabled:opacity-50 disabled:cursor-not-allowed
   disabled:hover:scale-100"
 ```
+
+#### 9. Custom Utilities
+**Scrollbar Hide** (in `src/index.css`):
+```css
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari and Opera */
+  }
+}
+```
+Used for:
+- Modal content scrolling
+- Dropdown menus
+- Mobile filter controls
+- Horizontal scroll areas
 
 ### Loading States
 - Spinner with indigo gradient
@@ -445,7 +522,22 @@ className="flex items-center justify-center gap-2 rounded-xl
 - ✅ Implement edit expense via modal
 - ✅ Add backdrop blur effect
 
-### 📋 Phase 5: Future Enhancements
+### ✅ Phase 5: Responsive Design & UX Polish (Completed)
+- ✅ Make transaction cards responsive (mobile stacking layout)
+- ✅ Add FAB to CategoryListPage (removed header button)
+- ✅ Implement horizontal scroll for mobile filters
+- ✅ Create ConfirmDialog component (replaces browser alerts)
+- ✅ Integrate ConfirmDialog in all delete operations
+- ✅ Fix modal button visibility (move to fixed footer)
+- ✅ Simplify modal buttons to "Save" and "Cancel"
+- ✅ Add mobile navigation with hamburger menu
+- ✅ Implement sidebar slide-in drawer for mobile
+- ✅ Add scrollbar-hide utility for cleaner UI
+- ✅ Optimize modal scroll performance
+- ✅ Prevent body scroll when modals/dialogs open
+- ✅ Make all pages fully responsive (mobile, tablet, desktop)
+
+### 📋 Phase 6: Future Enhancements
 - [ ] Dashboard charts (spending trends, category breakdown)
 - [ ] Date range filters for expenses
 - [ ] Export expenses to CSV

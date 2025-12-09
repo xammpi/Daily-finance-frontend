@@ -1,18 +1,16 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   Receipt,
   Calendar,
   TrendingDown,
+  TrendingUp,
   Edit2,
   Trash2,
   Plus,
   Search,
   Filter,
   X,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
   DollarSign,
   ArrowUp,
   ArrowDown
@@ -21,12 +19,14 @@ import { transactionApi } from '@/api/transaction.ts'
 import { categoriesApi } from '@/api/categories'
 import Layout from '@/components/Layout'
 import TransactionModal from '@/components/TransactionModal.tsx'
+import ConfirmDialog from '@/components/ConfirmDialog'
+import Pagination from '@/components/Pagination'
 import { formatCurrency, formatDateForDisplay, getCurrentMonthRange, getCurrentWeekRange, getTodayDate } from '@/utils'
 import { CriteriaBuilder } from '@/utils/CriteriaBuilder'
 import type { PaginatedResponse } from '@/types'
 import { Transaction } from '@/types/transaction.ts'
-import { Category } from '@/types/category.ts'
-import { useWallet } from '@/hooks/useWallet.ts'
+import { Category, CategoryType } from '@/types/category.ts'
+import { toast } from '@/lib/toast'
 
 // Local filter interface for transaction filtering
 interface TransactionFilterParams {
@@ -40,6 +40,7 @@ interface TransactionFilterParams {
 }
 
 export default function TransactionListPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [paginatedData, setPaginatedData] = useState<PaginatedResponse<Transaction> | null>(null)
   const [categories, setCategories] = useState<Category[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -47,6 +48,9 @@ export default function TransactionListPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingTransactionId, setEditingTransactionId] = useState<number | undefined>(undefined)
   const [showFilters, setShowFilters] = useState(false)
+  const [isInitialized, setIsInitialized] = useState(false)
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; description: string } | null>(null)
 
   // Filter state
   const [filters, setFilters] = useState<TransactionFilterParams>({
@@ -67,6 +71,67 @@ export default function TransactionListPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
 
+  // Apply filter from URL parameter on mount
+  useEffect(() => {
+    const filterParam = searchParams.get('filter')
+    const categoryParam = searchParams.get('category')
+
+    let updatedFilters: Partial<TransactionFilterParams> = {}
+
+    // Handle date filter
+    if (filterParam) {
+      let dateRange: { startDate: string; endDate: string } | null = null
+
+      switch (filterParam) {
+        case 'today':
+          const today = getTodayDate()
+          dateRange = { startDate: today, endDate: today }
+          break
+        case 'week':
+          dateRange = getCurrentWeekRange()
+          break
+        case 'month':
+          dateRange = getCurrentMonthRange()
+          break
+      }
+
+      if (dateRange) {
+        updatedFilters.startDate = dateRange.startDate
+        updatedFilters.endDate = dateRange.endDate
+      }
+
+      // Remove the filter param from URL after applying
+      searchParams.delete('filter')
+    }
+
+    // Handle category filter
+    if (categoryParam) {
+      const categoryId = Number(categoryParam)
+      if (!isNaN(categoryId)) {
+        updatedFilters.categoryId = categoryId
+      }
+      // Remove the category param from URL after applying
+      searchParams.delete('category')
+    }
+
+    // Apply filters if any
+    if (Object.keys(updatedFilters).length > 0) {
+      setFilters(prev => ({
+        ...prev,
+        ...updatedFilters
+      }))
+      setShowFilters(true)
+    }
+
+    // Update URL if we removed params
+    if (filterParam || categoryParam) {
+      setSearchParams(searchParams, { replace: true })
+    }
+
+    // Mark as initialized after processing URL params
+    setIsInitialized(true)
+  }, [])
+
   useEffect(() => {
     fetchCategories()
   }, [])
@@ -80,9 +145,12 @@ export default function TransactionListPage() {
     return () => clearTimeout(timer)
   }, [searchTerm])
 
+  // Only fetch transactions after URL params have been processed
   useEffect(() => {
-    fetchTransactions()
-  }, [filters.categoryId, filters.startDate, filters.endDate, filters.minAmount, filters.maxAmount, filters.page, filters.size, sortBy, sortOrder, debouncedSearchTerm])
+    if (isInitialized) {
+      fetchTransactions()
+    }
+  }, [isInitialized, filters.categoryId, filters.startDate, filters.endDate, filters.minAmount, filters.maxAmount, filters.page, filters.size, sortBy, sortOrder, debouncedSearchTerm])
 
   const fetchCategories = async () => {
     try {
@@ -143,12 +211,24 @@ export default function TransactionListPage() {
     }
   }
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = (id: number, description: string) => {
+    setDeleteTarget({ id, description })
+    setIsConfirmOpen(true)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return
+
     try {
-      await transactionApi.delete(id)
+      await transactionApi.delete(deleteTarget.id)
+      toast.success('Transaction deleted successfully')
       fetchTransactions()
-    } catch (err) {
-      console.error(err)
+    } catch (err: any) {
+      console.error('Failed to delete transaction:', err)
+      const errorMessage = err.response?.data?.message || 'Failed to delete transaction'
+      toast.error(errorMessage)
+    } finally {
+      setDeleteTarget(null)
     }
   }
 
@@ -262,17 +342,29 @@ export default function TransactionListPage() {
     <Layout onAddTransaction={() => handleOpenModal()}>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="mt-1 text-slate-600">
-              {paginatedData?.totalElements || 0} total transaction{paginatedData?.totalElements !== 1 ? 's' : ''}
-            </p>
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-500 via-purple-500 to-purple-600 p-8 text-white shadow-2xl">
+          {/* Decorative Circles */}
+          <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/10" />
+          <div className="absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-white/5" />
+
+          <div className="relative flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/20 shadow-lg backdrop-blur-sm">
+                <Receipt className="h-8 w-8" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold">Transactions</h1>
+                <p className="mt-1 text-sm text-white/90">
+                  {paginatedData?.totalElements || 0} total transaction{paginatedData?.totalElements !== 1 ? 's' : ''}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Search and Filter Button */}
         <div className="space-y-4">
-          <div className="flex gap-4">
+          <div className="flex flex-col gap-3 md:flex-row md:gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
               <input
@@ -291,47 +383,50 @@ export default function TransactionListPage() {
                 </div>
               )}
             </div>
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className={`flex items-center gap-2 rounded-xl border px-6 py-3 font-medium transition-colors ${
-                showFilters || hasActiveFilters
-                  ? 'border-indigo-500 bg-indigo-50 text-indigo-600'
-                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              <Filter className="h-5 w-5" />
-              Filters
-              {hasActiveFilters && (
-                <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-xs text-white">
-                  {[
-                    debouncedSearchTerm.trim() && debouncedSearchTerm.trim().length >= 2 ? debouncedSearchTerm : null,
-                    filters.categoryId,
-                    filters.startDate,
-                    filters.minAmount
-                  ].filter(Boolean).length}
-                </span>
-              )}
-            </button>
 
-            {/* Sort Controls */}
-            <div className="flex gap-2">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as 'date' | 'amount' | 'categoryName')}
-                className="rounded-xl border border-slate-200 bg-white px-4 py-3 font-medium text-slate-700 transition-all hover:bg-slate-50 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-              >
-                <option value="date">Sort by Date</option>
-                <option value="amount">Sort by Amount</option>
-                <option value="categoryName">Sort by Category</option>
-              </select>
+            {/* Filter and Sort Controls - Horizontal Scroll on Mobile */}
+            <div className="-mx-4 overflow-x-auto px-4 scrollbar-hide md:mx-0 md:overflow-x-visible md:px-0">
+              <div className="flex gap-2 md:gap-3">
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={`flex flex-shrink-0 items-center gap-2 rounded-xl border px-4 py-3 font-medium transition-colors md:px-6 ${
+                    showFilters || hasActiveFilters
+                      ? 'border-indigo-500 bg-indigo-50 text-indigo-600'
+                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <Filter className="h-5 w-5" />
+                  <span className="whitespace-nowrap">Filters</span>
+                  {hasActiveFilters && (
+                    <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-xs text-white">
+                      {[
+                        debouncedSearchTerm.trim() && debouncedSearchTerm.trim().length >= 2 ? debouncedSearchTerm : null,
+                        filters.categoryId,
+                        filters.startDate,
+                        filters.minAmount
+                      ].filter(Boolean).length}
+                    </span>
+                  )}
+                </button>
 
-              <button
-                onClick={() => setSortOrder(sortOrder === 'ASC' ? 'DESC' : 'ASC')}
-                className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 font-medium text-slate-700 transition-colors hover:bg-slate-50"
-                title={sortOrder === 'ASC' ? 'Ascending' : 'Descending'}
-              >
-                {sortOrder === 'ASC' ? <ArrowUp className="h-5 w-5" /> : <ArrowDown className="h-5 w-5" />}
-              </button>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as 'date' | 'amount' | 'categoryName')}
+                  className="flex-shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-3 font-medium text-slate-700 transition-all hover:bg-slate-50 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 md:px-4"
+                >
+                  <option value="date">Sort by Date</option>
+                  <option value="amount">Sort by Amount</option>
+                  <option value="categoryName">Sort by Category</option>
+                </select>
+
+                <button
+                  onClick={() => setSortOrder(sortOrder === 'ASC' ? 'DESC' : 'ASC')}
+                  className="flex flex-shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 font-medium text-slate-700 transition-colors hover:bg-slate-50 md:px-4"
+                  title={sortOrder === 'ASC' ? 'Ascending' : 'Descending'}
+                >
+                  {sortOrder === 'ASC' ? <ArrowUp className="h-5 w-5" /> : <ArrowDown className="h-5 w-5" />}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -351,32 +446,34 @@ export default function TransactionListPage() {
                 </button>
               </div>
 
-              {/* Quick Filter Buttons */}
-              <div className="mb-4 flex flex-wrap gap-2">
-                <button
-                  onClick={() => handleQuickFilter('today')}
-                  className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-600"
-                >
-                  Today
-                </button>
-                <button
-                  onClick={() => handleQuickFilter('week')}
-                  className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-600"
-                >
-                  This Week
-                </button>
-                <button
-                  onClick={() => handleQuickFilter('month')}
-                  className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-600"
-                >
-                  This Month
-                </button>
-                <button
-                  onClick={() => handleQuickFilter('all')}
-                  className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
-                >
-                  All Time
-                </button>
+              {/* Quick Filter Buttons - Horizontal Scroll on Mobile */}
+              <div className="mb-4 -mx-6 overflow-x-auto px-6 scrollbar-hide">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleQuickFilter('today')}
+                    className="flex-shrink-0 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-600"
+                  >
+                    Today
+                  </button>
+                  <button
+                    onClick={() => handleQuickFilter('week')}
+                    className="flex-shrink-0 whitespace-nowrap rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-600"
+                  >
+                    This Week
+                  </button>
+                  <button
+                    onClick={() => handleQuickFilter('month')}
+                    className="flex-shrink-0 whitespace-nowrap rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-600"
+                  >
+                    This Month
+                  </button>
+                  <button
+                    onClick={() => handleQuickFilter('all')}
+                    className="flex-shrink-0 whitespace-nowrap rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+                  >
+                    All Time
+                  </button>
+                </div>
               </div>
 
               {/* Filter Inputs */}
@@ -511,75 +608,118 @@ export default function TransactionListPage() {
 
         {/* Transaction List */}
         {transactions.length === 0 ? (
-          <div className="rounded-2xl bg-white p-12 text-center shadow-lg">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
-              <Receipt className="h-8 w-8 text-slate-400" />
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-16 text-center shadow-xl">
+            <div className="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-gradient-to-br from-indigo-400/20 to-purple-400/20" />
+            <div className="absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-gradient-to-br from-blue-400/20 to-cyan-400/20" />
+
+            <div className="relative">
+              <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-2xl">
+                <Receipt className="h-12 w-12 text-white" />
+              </div>
+              <h3 className="mb-3 text-2xl font-bold text-slate-900">No transactions found</h3>
+              <p className="mb-8 text-base text-slate-600">
+                {searchTerm || hasActiveFilters
+                  ? 'Try adjusting your search or filter criteria to find what you\'re looking for'
+                  : 'Start tracking your finances by creating your first transaction'}
+              </p>
+              {!searchTerm && !hasActiveFilters && (
+                <button
+                  onClick={() => handleOpenModal()}
+                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 px-8 py-4 text-base font-semibold text-white shadow-lg transition-all hover:scale-105 hover:shadow-xl"
+                >
+                  <Plus className="h-5 w-5" />
+                  Create Your First Transaction
+                </button>
+              )}
             </div>
-            <p className="mb-2 text-lg font-medium text-slate-900">No transaction found</p>
-            <p className="mb-6 text-slate-500">
-              {searchTerm || hasActiveFilters
-                ? 'Try adjusting your search or filter criteria'
-                : 'Start by creating your first transaction'}
-            </p>
-            {!searchTerm && !hasActiveFilters && (
-              <button
-                onClick={() => handleOpenModal()}
-                className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-6
-                 py-3 font-medium text-white transition-colors hover:bg-indigo-700">
-                <Plus className="h-5 w-5" />
-                Create Your First Transaction
-              </button>
-            )}
           </div>
         ) : (
           <>
             <div className="space-y-6">
               {Object.entries(groupedTransactions).map(([date, dateTransactions]) => (
-                <div key={date} className="space-y-3">
-                  <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
+                <div key={date} className="space-y-4">
+                  <div className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-slate-100 to-slate-50 px-4 py-2 text-sm font-semibold text-slate-700">
                     <Calendar className="h-4 w-4" />
                     {date}
                   </div>
                   <div className="space-y-3">
-                    {dateTransactions.map((transaction) => (
-                      <div
-                        key={transaction.id}
-                        className="group flex items-center justify-between rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-indigo-200 hover:shadow-md"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-50">
-                            <TrendingDown className="h-6 w-6 text-red-600" />
-                          </div>
-                          <div>
-                            <p className="font-semibold text-slate-900">{transaction.description}</p>
-                            <div className="mt-1 flex items-center gap-2">
-                              <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-medium text-indigo-700">
-                                {transaction.categoryName}
-                              </span>
+                    {dateTransactions.map((transaction) => {
+                      const isIncome = transaction.categoryType === CategoryType.INCOME
+                      const TypeIcon = isIncome ? TrendingUp : TrendingDown
+
+                      return (
+                        <div
+                          key={transaction.id}
+                          className="group relative overflow-hidden rounded-2xl bg-white shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+                        >
+                          {/* Gradient Side Bar */}
+                          <div className={`absolute left-0 top-0 h-full w-1.5 bg-gradient-to-b ${
+                            isIncome ? 'from-emerald-500 to-teal-600' : 'from-red-500 to-orange-600'
+                          }`} />
+
+                          <div className="flex flex-col gap-3 p-5 pl-6 md:flex-row md:items-center md:justify-between md:gap-4">
+                            {/* Icon and description section */}
+                            <div className="flex items-center gap-3 md:gap-4">
+                              {/* Icon with Gradient Background */}
+                              <div className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br shadow-lg md:h-14 md:w-14 ${
+                                isIncome ? 'from-emerald-500 to-teal-600' : 'from-red-500 to-orange-600'
+                              }`}>
+                                <TypeIcon className="h-6 w-6 text-white md:h-7 md:w-7" />
+                              </div>
+
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-base font-bold text-slate-900 md:text-lg">{transaction.description}</p>
+                                <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-slate-500 md:gap-2">
+                                  <Calendar className="h-3 w-3" />
+                                  {formatDateForDisplay(transaction.date)}
+                                  <span className="hidden md:inline">•</span>
+                                  <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-semibold ${
+                                    isIncome
+                                      ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
+                                      : 'bg-red-50 text-red-700 ring-1 ring-red-200'
+                                  }`}>
+                                    <TypeIcon className="h-3 w-3" />
+                                    {transaction.categoryName}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Amount and action buttons section */}
+                            <div className="flex items-center justify-between gap-2 md:gap-4">
+                              <div className="flex-1 md:text-right">
+                                <p className={`text-xl font-bold md:text-2xl ${
+                                  isIncome ? 'text-emerald-600' : 'text-red-600'
+                                }`}>
+                                  {isIncome ? '+' : '-'}
+                                  {formatCurrency(transaction.amount)}
+                                </p>
+                              </div>
+
+                              <div className="flex gap-1.5 md:gap-2">
+                                <button
+                                  onClick={() => handleOpenModal(transaction.id)}
+                                  className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md transition-all hover:scale-110 hover:shadow-lg md:h-10 md:w-10 md:rounded-xl"
+                                  title="Edit transaction"
+                                >
+                                  <Edit2 className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(transaction.id, transaction.description)}
+                                  className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border-2 border-red-200 bg-red-50 text-red-600 transition-all hover:border-red-300 hover:bg-red-100 md:h-10 md:w-10 md:rounded-xl"
+                                  title="Delete transaction"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                                </button>
+                              </div>
                             </div>
                           </div>
+
+                          {/* Decorative Elements */}
+                          <div className="absolute -right-4 -top-4 h-16 w-16 rounded-full bg-gradient-to-br from-white/50 to-white/0" />
                         </div>
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <p className="text-xl font-bold text-red-600">{formatCurrency(transaction.amount)}</p>
-                          </div>
-                          <div className="flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
-                            <button
-                              onClick={() => handleOpenModal(transaction.id)}
-                              className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 transition-colors hover:bg-indigo-100"
-                            >
-                              <Edit2 className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(transaction.id)}
-                              className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-50 text-red-600 transition-colors hover:bg-red-100"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </div>
               ))}
@@ -587,50 +727,24 @@ export default function TransactionListPage() {
 
             {/* Pagination Controls */}
             {paginatedData && paginatedData.totalPages > 1 && (
-              <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4">
-                <div className="flex items-center gap-2 text-sm text-slate-600">
+              <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+                <div className="flex items-center justify-center">
+                  <Pagination
+                    currentPage={paginatedData.currentPage}
+                    totalPages={paginatedData.totalPages}
+                    onPageChange={handlePageChange}
+                    isFirst={paginatedData.first}
+                    isLast={paginatedData.last}
+                  />
+                </div>
+                <div className="flex items-center justify-center gap-2 text-sm text-slate-600">
                   <span className="font-medium">
                     Page {paginatedData.currentPage + 1} of {paginatedData.totalPages}
                   </span>
                   <span className="text-slate-400">•</span>
                   <span>
-                    {transactions.length} of {paginatedData.totalElements} expenses
+                    {transactions.length} of {paginatedData.totalElements} transactions
                   </span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handlePageChange(0)}
-                    disabled={paginatedData.first}
-                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                    title="First page"
-                  >
-                    <ChevronsLeft className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => handlePageChange(paginatedData.currentPage - 1)}
-                    disabled={!paginatedData.hasPrevious}
-                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                    title="Previous page"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => handlePageChange(paginatedData.currentPage + 1)}
-                    disabled={!paginatedData.hasNext}
-                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                    title="Next page"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => handlePageChange(paginatedData.totalPages - 1)}
-                    disabled={paginatedData.last}
-                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-                    title="Last page"
-                  >
-                    <ChevronsRight className="h-4 w-4" />
-                  </button>
                 </div>
               </div>
             )}
@@ -644,6 +758,18 @@ export default function TransactionListPage() {
         onClose={handleCloseModal}
         onSuccess={handleModalSuccess}
         transactionId={editingTransactionId}
+      />
+
+      {/* Confirm Delete Dialog */}
+      <ConfirmDialog
+        isOpen={isConfirmOpen}
+        onClose={() => setIsConfirmOpen(false)}
+        onConfirm={handleConfirmDelete}
+        title="Delete Transaction"
+        message={`Are you sure you want to delete this transaction?\n\n"${deleteTarget?.description}"\n\nThis action cannot be undone.`}
+        confirmText="Yes, Delete"
+        cancelText="No, Cancel"
+        variant="danger"
       />
     </Layout>
   )

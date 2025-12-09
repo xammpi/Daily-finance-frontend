@@ -5,6 +5,7 @@ import DashboardPage from '@/features/dashboard/DashboardPage'
 import TransactionListPage from '@/features/expenses/TransactionListPage.tsx'
 import CategoryListPage from '@/features/categories/CategoryListPage'
 import WalletPage from '@/features/wallet/WalletPage'
+import AccountPage from '@/features/account/AccountPage'
 import ProtectedRoute from '@/routes/ProtectedRoute'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { ToastContainer } from '@/components/Toast'
@@ -20,6 +21,7 @@ function App() {
           <Route path="/transactions" element={<ProtectedRoute><TransactionListPage /></ProtectedRoute>} />
           <Route path="/wallet" element={<ProtectedRoute><WalletPage /></ProtectedRoute>} />
           <Route path="/categories" element={<ProtectedRoute><CategoryListPage /></ProtectedRoute>} />
+          <Route path="/account" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Routes>
         <ToastContainer />

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X, Plus, Trash2, Search } from 'lucide-react'
 import type { SearchCriteria, SearchOperation } from '@/types'
 
@@ -36,6 +36,19 @@ export function AdvancedSearchModal({
     { field: 'amount', operation: 'GREATER_THAN', value: '' },
   ])
 
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'unset'
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset'
+    }
+  }, [isOpen])
+
   if (!isOpen) return null
 
   const addCriteria = () => {
@@ -72,27 +85,38 @@ export function AdvancedSearchModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Search className="w-5 h-5 text-indigo-600" />
-            <h2 className="text-xl font-bold text-slate-900">Advanced Search</h2>
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header with Gradient */}
+        <div className="relative overflow-hidden bg-gradient-to-br from-indigo-500 via-purple-500 to-purple-600 px-6 py-6">
+          {/* Decorative Circles */}
+          <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/10" />
+          <div className="absolute -left-8 -bottom-8 h-32 w-32 rounded-full bg-white/5" />
+
+          <div className="relative flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-white/20 shadow-lg backdrop-blur-sm">
+                <Search className="h-7 w-7 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-white">Advanced Search</h2>
+                <p className="mt-1 text-sm text-white/90">Build custom search criteria</p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="flex h-10 w-10 items-center justify-center rounded-xl text-white/80 transition-all hover:bg-white/20 hover:text-white"
+            >
+              <X className="h-6 w-6" />
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-          >
-            <X className="w-5 h-5 text-slate-600" />
-          </button>
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-4">
+        <div className="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-hide">
           {criteria.map((criterion, index) => (
             <div
               key={index}
-              className="flex flex-col gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200"
+              className="relative flex flex-col gap-3 p-5 bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl border border-slate-200 shadow-sm transition-all hover:shadow-md"
             >
               <div className="flex items-start gap-3">
                 {/* Field */}
@@ -137,7 +161,7 @@ export function AdvancedSearchModal({
                 {criteria.length > 1 && (
                   <button
                     onClick={() => removeCriteria(index)}
-                    className="mt-6 p-2 hover:bg-red-50 text-red-600 rounded-lg transition-colors"
+                    className="mt-6 flex h-10 w-10 items-center justify-center rounded-xl border-2 border-red-200 bg-red-50 text-red-600 transition-all hover:border-red-300 hover:bg-red-100"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -182,26 +206,29 @@ export function AdvancedSearchModal({
           {/* Add Criteria Button */}
           <button
             onClick={addCriteria}
-            className="w-full py-3 rounded-xl border-2 border-dashed border-slate-300 text-slate-600 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all flex items-center justify-center gap-2 font-medium"
+            className="w-full py-4 rounded-xl border-2 border-dashed border-slate-300 text-slate-600 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all flex items-center justify-center gap-2 font-semibold"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-5 h-5" />
             Add Criteria
           </button>
         </div>
 
         {/* Footer */}
-        <div className="sticky bottom-0 bg-white border-t border-slate-200 px-6 py-4 flex gap-3 justify-end">
+        <div className="border-t border-slate-200 bg-slate-50 px-6 py-4 flex gap-3 justify-end">
           <button
             onClick={onClose}
-            className="px-6 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 font-medium transition-colors"
+            className="px-6 py-3 rounded-xl border-2 border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 font-semibold transition-all"
           >
             Cancel
           </button>
           <button
             onClick={handleSearch}
-            className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-medium hover:scale-105 transition-transform"
+            className="px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold shadow-lg hover:scale-105 hover:shadow-xl transition-all"
           >
-            Search
+            <span className="flex items-center gap-2">
+              <Search className="w-4 h-4" />
+              Search
+            </span>
           </button>
         </div>
       </div>

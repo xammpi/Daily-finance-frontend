@@ -1,3 +1,5 @@
+import { CategoryType } from './category'
+
 export interface Transaction {
   id: number
   amount: number
@@ -5,6 +7,7 @@ export interface Transaction {
   description: string
   categoryId: number
   categoryName: string
+  categoryType: CategoryType
   createdAt: string
   updatedAt: string
 }

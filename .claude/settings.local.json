@@ -23,7 +23,11 @@
       "Bash(unset VITE_API_BASE_URL)",
       "mcp__ide__getDiagnostics",
       "Bash(npx tsc:*)",
-      "Bash(npm run lint:*)"
+      "Bash(npm run lint:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(for file in /Users/rekatun/WebstormProjects/Daily-finance-frontend/src/api/*.ts)",
+      "Bash(timeout 10 npx tsc:*)"
     ],
     "deny": [],
     "ask": []

@@ -44,6 +44,19 @@ export default function CategoryModal({ isOpen, onClose, onSuccess, categoryId }
     setError(null);
   };
 
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'unset'
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset'
+    }
+  }, [isOpen])
+
   // 2. IMPROVEMENT: Only call fetchData if in edit mode or if the modal is opening
   useEffect(() => {
     if (isOpen) {
@@ -123,48 +136,54 @@ export default function CategoryModal({ isOpen, onClose, onSuccess, categoryId }
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleClose} />
 
       {/* Modal */}
-      <div className="relative w-full max-w-lg rounded-2xl bg-white shadow-2xl">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 p-6">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 shadow-lg">
-              <Tag className="h-5 w-5 text-white" />
+      <div className="relative w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl">
+        {/* Header with Gradient */}
+        <div className="relative overflow-hidden bg-gradient-to-br from-indigo-500 via-purple-500 to-purple-600 p-6">
+          {/* Decorative Circles */}
+          <div className="absolute -right-12 -top-12 h-40 w-40 rounded-full bg-white/10" />
+          <div className="absolute -left-8 -bottom-8 h-32 w-32 rounded-full bg-white/5" />
+
+          <div className="relative flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-white/20 shadow-lg backdrop-blur-sm">
+                <Tag className="h-7 w-7 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-white">
+                  {isEditMode ? 'Edit Category' : 'New Category'}
+                </h2>
+                <p className="mt-1 text-sm text-white/90">
+                  {isEditMode ? 'Update category details' : 'Create a new category'}
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-xl font-bold text-slate-900">
-                {isEditMode ? 'Edit Category' : 'New Category'}
-              </h2>
-              <p className="text-sm text-slate-600">
-                {isEditMode ? 'Update category details' : 'Record a new category'}
-              </p>
-            </div>
+            <button onClick={handleClose} className="flex h-10 w-10 items-center justify-center rounded-xl text-white/80 transition-all hover:bg-white/20 hover:text-white">
+              <X className="h-6 w-6" />
+            </button>
           </div>
-          <button onClick={handleClose} className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600">
-            <X className="h-5 w-5" />
-          </button>
         </div>
 
         {/* Content */}
-        <div className="max-h-[calc(100vh-200px)] overflow-y-auto p-6">
-          {isFetching ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="text-center">
-                <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-indigo-600" />
-                <p className="text-sm text-slate-600">Loading...</p>
-              </div>
+        {isFetching ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-indigo-600" />
+              <p className="text-sm text-slate-600">Loading...</p>
             </div>
-          ) : (
-            <>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit}>
+            <div className="max-h-[calc(100vh-340px)] overflow-y-auto px-6 pt-6 scrollbar-hide">
               {error && (
-                <div className="mb-4 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-3 text-red-700">
-                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-red-100">
-                    <span className="text-xs font-bold">!</span>
+                <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-200 bg-gradient-to-br from-red-50 to-orange-50 p-4 text-red-700 shadow-sm">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-red-500 to-orange-600 shadow-md">
+                    <span className="text-xs font-bold text-white">!</span>
                   </div>
                   <p className="text-sm font-medium">{error}</p>
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-5">
 
                 {/* 1. Category Name */}
                 <div>
@@ -233,28 +252,31 @@ export default function CategoryModal({ isOpen, onClose, onSuccess, categoryId }
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
 
-                <div className="flex gap-3 pt-2">
-                  <button
-                    type="submit"
-                    disabled={isLoading || !formState.type} // Disable if type is not selected
-                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-3 font-medium text-white shadow-lg transition-all hover:scale-105 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
-                  >
-                    <Save className="h-5 w-5" />
-                    {isLoading ? 'Saving...' : isEditMode ? 'Update' : 'Create'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleClose}
-                    className="flex flex-1 items-center justify-center rounded-xl border border-slate-200 bg-white px-6 py-3 font-medium text-slate-700 transition-colors hover:bg-slate-50"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </>
-          )}
-        </div>
+            {/* Footer with buttons - Always visible */}
+            <div className="border-t border-slate-200 bg-slate-50 px-6 py-4">
+              <div className="flex gap-3">
+                <button
+                  type="submit"
+                  disabled={isLoading || !formState.type} // Disable if type is not selected
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-3.5 font-semibold text-white shadow-lg transition-all hover:scale-105 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
+                >
+                  <Save className="h-5 w-5" />
+                  {isLoading ? 'Saving...' : 'Save'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  className="flex flex-1 items-center justify-center rounded-xl border-2 border-slate-200 bg-white px-6 py-3.5 font-semibold text-slate-700 transition-all hover:border-slate-300 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   )

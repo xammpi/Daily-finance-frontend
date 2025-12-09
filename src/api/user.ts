@@ -1,6 +1,17 @@
 import apiClient from './client'
 import type { User, Wallet, DepositRequest, WithdrawRequest, BalanceUpdateRequest, CurrencyUpdateRequest } from '@/types'
 
+export interface UpdateProfileRequest {
+  firstName: string
+  lastName: string
+  email: string
+}
+
+export interface ChangePasswordRequest {
+  currentPassword: string
+  newPassword: string
+}
+
 export const userApi = {
   /**
    * Get user profile
@@ -62,5 +73,22 @@ export const userApi = {
    */
   async updateCurrency(data: CurrencyUpdateRequest): Promise<void> {
     await apiClient.put('/user/currency', data)
+  },
+
+  /**
+   * Update user profile information
+   * @param data UpdateProfileRequest with firstName, lastName, email
+   */
+  async updateProfile(data: UpdateProfileRequest): Promise<User> {
+    const response = await apiClient.put<User>('/user/profile', data)
+    return response.data
+  },
+
+  /**
+   * Change user password
+   * @param data ChangePasswordRequest with currentPassword and newPassword
+   */
+  async changePassword(data: ChangePasswordRequest): Promise<void> {
+    await apiClient.put('/user/password', data)
   },
 }

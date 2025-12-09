@@ -3,19 +3,24 @@ import { Link } from 'react-router-dom'
 import {
   Wallet,
   TrendingDown,
+  TrendingUp,
   Calendar,
   ArrowRight,
   Plus,
   Receipt,
-  AlertCircle
+  AlertCircle,
+  Edit2,
+  Trash2
 } from 'lucide-react'
 import { transactionApi } from '@/api/transaction.ts'
 import { useBalance } from '@/hooks/useBalance'
 import Layout from '@/components/Layout'
 import TransactionModal from '@/components/TransactionModal.tsx'
+import ConfirmDialog from '@/components/ConfirmDialog'
 import { formatCurrency, formatDateShort } from '@/utils'
 import type { ExpenseStatistics } from '@/types'
 import { Transaction } from '@/types/transaction.ts'
+import { CategoryType } from '@/types/category'
 import { toast } from '@/lib/toast'
 
 export default function DashboardPage() {
@@ -24,6 +29,9 @@ export default function DashboardPage() {
   const [statistics, setStatistics] = useState<ExpenseStatistics | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingTransactionId, setEditingTransactionId] = useState<number | undefined>(undefined)
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; description: string } | null>(null)
 
   // Debug wallet data
   useEffect(() => {
@@ -67,12 +75,14 @@ export default function DashboardPage() {
     }
   }
 
-  const handleOpenModal = () => {
+  const handleOpenModal = (transactionId?: number) => {
+    setEditingTransactionId(transactionId)
     setIsModalOpen(true)
   }
 
   const handleCloseModal = () => {
     setIsModalOpen(false)
+    setEditingTransactionId(undefined)
   }
 
   const handleModalSuccess = async () => {
@@ -80,6 +90,30 @@ export default function DashboardPage() {
       fetchDashboardData(),
       refreshBalance()
     ])
+  }
+
+  const handleDelete = (id: number, description: string) => {
+    setDeleteTarget({ id, description })
+    setIsConfirmOpen(true)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return
+
+    try {
+      await transactionApi.delete(deleteTarget.id)
+      toast.success('Transaction deleted successfully')
+      await Promise.all([
+        fetchDashboardData(),
+        refreshBalance()
+      ])
+    } catch (err: any) {
+      console.error('Failed to delete transaction:', err)
+      const errorMessage = err.response?.data?.message || 'Failed to delete transaction'
+      toast.error(errorMessage)
+    } finally {
+      setDeleteTarget(null)
+    }
   }
 
   // Show loading state if either wallet or dashboard data is loading
@@ -99,7 +133,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <Layout onAddTransaction={handleOpenModal}>
+    <Layout onAddTransaction={() => handleOpenModal()}>
       <div className="space-y-6">
         {/* Low Balance Warning */}
         {wallet?.lowBalanceWarning && (
@@ -118,16 +152,17 @@ export default function DashboardPage() {
         {/* Stats Cards */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {/* Balance Card */}
-          <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 p-6 text-white shadow-lg transition-transform hover:scale-105">
-            <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-white/10" />
+          <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 p-6 text-white shadow-xl transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl">
+            <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/10" />
+            <div className="absolute -left-4 -bottom-4 h-24 w-24 rounded-full bg-white/5" />
             <div className="relative">
-              <div className="mb-4 flex items-center gap-2">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/20">
+              <div className="mb-3 flex items-center gap-2">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 shadow-lg backdrop-blur-sm">
                   <Wallet className="h-5 w-5" />
                 </div>
-                <span className="text-sm font-medium opacity-90">Current Balance</span>
+                <span className="text-xs font-semibold opacity-90">Current Balance</span>
               </div>
-              <p className="text-3xl font-bold">
+              <p className="truncate text-xl font-bold leading-tight lg:text-2xl">
                 {isLoading
                   ? '...'
                   : formatCurrency(
@@ -135,26 +170,35 @@ export default function DashboardPage() {
                       wallet?.currency?.code
                     )}
               </p>
-              <p className="mt-2 text-xs opacity-75">
-                {wallet?.totalExpenses || 0} expenses • {wallet?.totalDeposits || 0} deposits
-              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-medium opacity-90">
+                <span className="flex items-center gap-1">
+                  <TrendingDown className="h-3 w-3" />
+                  {wallet?.totalExpenses || 0} expenses
+                </span>
+                <span>•</span>
+                <span className="flex items-center gap-1">
+                  <TrendingUp className="h-3 w-3" />
+                  {wallet?.totalDeposits || 0} deposits
+                </span>
+              </div>
             </div>
           </div>
 
           {/* Today Expenses Card */}
           <Link
-            to="/expenses"
-            className="group relative overflow-hidden rounded-2xl bg-white p-6 shadow-lg transition-all hover:shadow-xl"
+            to="/transactions?filter=today"
+            className="group relative overflow-hidden rounded-2xl bg-white p-6 shadow-xl transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl"
           >
-            <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-blue-50" />
+            <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-blue-50" />
+            <div className="absolute -left-4 -bottom-4 h-24 w-24 rounded-full bg-blue-50/50" />
             <div className="relative">
-              <div className="mb-4 flex items-center gap-2">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
-                  <Calendar className="h-5 w-5 text-blue-600" />
+              <div className="mb-3 flex items-center gap-2">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg">
+                  <Calendar className="h-5 w-5 text-white" />
                 </div>
-                <span className="text-sm font-medium text-slate-600">Today</span>
+                <span className="text-xs font-semibold text-slate-600">Today</span>
               </div>
-              <p className="text-3xl font-bold text-slate-900">
+              <p className="truncate text-xl font-bold leading-tight text-slate-900 lg:text-2xl">
                 {isLoading
                   ? '...'
                   : formatCurrency(
@@ -162,24 +206,25 @@ export default function DashboardPage() {
                       wallet?.currency?.code || 'USD'
                     )}
               </p>
-              <p className="mt-2 text-sm text-slate-500">Spent today</p>
+              <p className="mt-3 text-xs font-medium text-slate-500">Spent today</p>
             </div>
           </Link>
 
           {/* Week Expenses Card */}
           <Link
-            to="/expenses"
-            className="group relative overflow-hidden rounded-2xl bg-white p-6 shadow-lg transition-all hover:shadow-xl"
+            to="/transactions?filter=week"
+            className="group relative overflow-hidden rounded-2xl bg-white p-6 shadow-xl transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl"
           >
-            <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-orange-50" />
+            <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-orange-50" />
+            <div className="absolute -left-4 -bottom-4 h-24 w-24 rounded-full bg-orange-50/50" />
             <div className="relative">
-              <div className="mb-4 flex items-center gap-2">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-100">
-                  <TrendingDown className="h-5 w-5 text-orange-600" />
+              <div className="mb-3 flex items-center gap-2">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 shadow-lg">
+                  <TrendingDown className="h-5 w-5 text-white" />
                 </div>
-                <span className="text-sm font-medium text-slate-600">This Week</span>
+                <span className="text-xs font-semibold text-slate-600">This Week</span>
               </div>
-              <p className="text-3xl font-bold text-slate-900">
+              <p className="truncate text-xl font-bold leading-tight text-slate-900 lg:text-2xl">
                 {isLoading
                   ? '...'
                   : formatCurrency(
@@ -187,24 +232,25 @@ export default function DashboardPage() {
                       wallet?.currency?.code || 'USD'
                     )}
               </p>
-              <p className="mt-2 text-sm text-slate-500">Weekly spending</p>
+              <p className="mt-3 text-xs font-medium text-slate-500">Weekly spending</p>
             </div>
           </Link>
 
           {/* Monthly Expenses Card */}
           <Link
-            to="/expenses"
-            className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-red-500 to-orange-600 p-6 text-white shadow-lg transition-all hover:shadow-xl"
+            to="/transactions?filter=month"
+            className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-red-500 to-orange-600 p-6 text-white shadow-xl transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl"
           >
-            <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-white/10" />
+            <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/10" />
+            <div className="absolute -left-4 -bottom-4 h-24 w-24 rounded-full bg-white/5" />
             <div className="relative">
-              <div className="mb-4 flex items-center gap-2">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/20">
+              <div className="mb-3 flex items-center gap-2">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 shadow-lg backdrop-blur-sm">
                   <TrendingDown className="h-5 w-5" />
                 </div>
-                <span className="text-sm font-medium opacity-90">This Month</span>
+                <span className="text-xs font-semibold opacity-90">This Month</span>
               </div>
-              <p className="text-3xl font-bold">
+              <p className="truncate text-xl font-bold leading-tight lg:text-2xl">
                 {isLoading
                   ? '...'
                   : formatCurrency(
@@ -212,7 +258,7 @@ export default function DashboardPage() {
                       wallet?.currency?.code || 'USD'
                     )}
               </p>
-              <p className="mt-2 text-xs opacity-75">
+              <p className="mt-3 text-xs font-medium opacity-90">
                 Avg: {isLoading ? '...' : formatCurrency(statistics?.averageDailyExpenses || 0, wallet?.currency?.code || 'USD')}/day
               </p>
             </div>
@@ -220,85 +266,156 @@ export default function DashboardPage() {
         </div>
 
         {/* Recent Expenses */}
-        <div className="rounded-2xl bg-white p-6 shadow-lg">
-          <div className="mb-6 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-100">
-                <Receipt className="h-5 w-5 text-indigo-600" />
+        <div className="overflow-hidden rounded-2xl bg-white shadow-xl">
+          {/* Header with Gradient */}
+          <div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/20 shadow-lg backdrop-blur-sm">
+                  <Receipt className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-white">Recent Transactions</h2>
+                  <p className="text-sm text-white/80">Your latest activity</p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-xl font-bold text-slate-900">Recent Expenses</h2>
-                <p className="text-sm text-slate-500">Your latest transactions</p>
-              </div>
+              <Link
+                to="/transactions"
+                className="flex items-center gap-1 rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition-all hover:bg-white/30"
+              >
+                View All
+                <ArrowRight className="h-4 w-4" />
+              </Link>
             </div>
-            <Link
-              to="/expenses"
-              className="flex items-center gap-1 text-sm font-medium text-indigo-600 transition-colors hover:text-indigo-700"
-            >
-              View All
-              <ArrowRight className="h-4 w-4" />
-            </Link>
           </div>
 
+          <div className="p-6">
+
           {isLoading ? (
-            <div className="py-12 text-center text-slate-500">Loading expenses...</div>
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
+                <p className="text-slate-600">Loading transactions...</p>
+              </div>
+            </div>
           ) : expenses.length === 0 ? (
             <div className="py-12 text-center">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
-                <Receipt className="h-8 w-8 text-slate-400" />
+              <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200">
+                <Receipt className="h-10 w-10 text-slate-400" />
               </div>
-              <p className="mb-2 text-lg font-medium text-slate-900">No expenses yet</p>
-              <p className="mb-4 text-sm text-slate-500">
-                Start tracking your expenses to see them here
+              <p className="mb-2 text-lg font-bold text-slate-900">No transactions yet</p>
+              <p className="mb-6 text-sm text-slate-500">
+                Start tracking your finances to see them here
               </p>
               <button
-                onClick={handleOpenModal}
-                className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700"
+                onClick={() => handleOpenModal()}
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-3 font-semibold text-white shadow-lg transition-all hover:scale-105 hover:shadow-xl"
               >
-                <Plus className="h-4 w-4" />
-                Add Your First Expense
+                <Plus className="h-5 w-5" />
+                Add Your First Transaction
               </button>
             </div>
           ) : (
             <div className="space-y-3">
-              {expenses.map((expense) => (
-                <div
-                  key={expense.id}
-                  className="group flex items-center justify-between rounded-xl border border-slate-100 p-4 transition-all hover:border-slate-200 hover:bg-slate-50"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-50">
-                      <TrendingDown className="h-5 w-5 text-red-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-slate-900">{expense.description}</p>
-                      <div className="flex items-center gap-2 text-sm text-slate-500">
-                        <Calendar className="h-3.5 w-3.5" />
-                        {formatDateShort(expense.date)}
-                        <span>•</span>
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium">
-                          {expense.categoryName}
-                        </span>
+              {expenses.map((expense) => {
+                const isIncome = expense.categoryType === CategoryType.INCOME
+                const TypeIcon = isIncome ? TrendingUp : TrendingDown
+
+                return (
+                  <div
+                    key={expense.id}
+                    className="group relative overflow-hidden rounded-2xl bg-white p-5 shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+                  >
+                    {/* Gradient Side Bar */}
+                    <div className={`absolute left-0 top-0 h-full w-1.5 bg-gradient-to-b ${
+                      isIncome ? 'from-emerald-500 to-teal-600' : 'from-red-500 to-orange-600'
+                    }`} />
+
+                    <div className="flex flex-col gap-3 pl-1 md:flex-row md:items-center md:justify-between md:gap-4">
+                      <div className="flex items-center gap-3 md:gap-4">
+                        <div className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br shadow-lg md:h-14 md:w-14 ${
+                          isIncome ? 'from-emerald-500 to-teal-600' : 'from-red-500 to-orange-600'
+                        }`}>
+                          <TypeIcon className="h-6 w-6 text-white md:h-7 md:w-7" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-base font-bold text-slate-900 md:text-lg">{expense.description}</p>
+                          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500 md:gap-2">
+                            <div className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              {formatDateShort(expense.date)}
+                            </div>
+                            <span className="hidden md:inline">•</span>
+                            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold md:px-3 md:py-1 ${
+                              isIncome
+                                ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
+                                : 'bg-red-50 text-red-700 ring-1 ring-red-200'
+                            }`}>
+                              <TypeIcon className="h-3 w-3" />
+                              {expense.categoryName}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-2 md:gap-4">
+                        <div className="flex-1 md:text-right">
+                          <p className={`text-xl font-bold md:text-2xl ${
+                            isIncome ? 'text-emerald-600' : 'text-red-600'
+                          }`}>
+                            {isIncome ? '+' : '-'}
+                            {formatCurrency(expense.amount, wallet?.currency?.code || 'USD')}
+                          </p>
+                        </div>
+
+                        <div className="flex gap-1.5 md:gap-2">
+                          <button
+                            onClick={() => handleOpenModal(expense.id)}
+                            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md transition-all hover:scale-110 hover:shadow-lg md:h-10 md:w-10 md:rounded-xl"
+                            title="Edit transaction"
+                          >
+                            <Edit2 className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(expense.id, expense.description)}
+                            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border-2 border-red-200 bg-red-50 text-red-600 transition-all hover:border-red-300 hover:bg-red-100 md:h-10 md:w-10 md:rounded-xl"
+                            title="Delete transaction"
+                          >
+                            <Trash2 className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                          </button>
+                        </div>
                       </div>
                     </div>
+
+                    {/* Decorative Element */}
+                    <div className="absolute -right-4 -top-4 h-16 w-16 rounded-full bg-gradient-to-br from-white/50 to-white/0" />
                   </div>
-                  <div className="text-right">
-                    <p className="text-lg font-bold text-red-600">
-                      -{formatCurrency(expense.amount, wallet?.currency?.code || 'USD')}
-                    </p>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
+          </div>
         </div>
       </div>
 
-      {/* Expense Modal */}
+      {/* Transaction Modal */}
       <TransactionModal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         onSuccess={handleModalSuccess}
+        transactionId={editingTransactionId}
+      />
+
+      {/* Confirm Delete Dialog */}
+      <ConfirmDialog
+        isOpen={isConfirmOpen}
+        onClose={() => setIsConfirmOpen(false)}
+        onConfirm={handleConfirmDelete}
+        title="Delete Transaction"
+        message={`Are you sure you want to delete this transaction?\n\n"${deleteTarget?.description}"\n\nThis action cannot be undone.`}
+        confirmText="Yes, Delete"
+        cancelText="No, Cancel"
+        variant="danger"
       />
     </Layout>
   )
