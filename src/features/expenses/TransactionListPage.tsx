@@ -23,6 +23,9 @@ import ConfirmDialog from '@/components/ConfirmDialog'
 import Pagination from '@/components/Pagination'
 import { formatCurrency, formatDateForDisplay, getCurrentMonthRange, getCurrentWeekRange, getTodayDate } from '@/utils'
 import { CriteriaBuilder } from '@/utils/CriteriaBuilder'
+import { apiPerformance } from '@/utils/apiPerformance'
+import { useDelayedLoading } from '@/hooks/useDelayedLoading'
+import { usePaginationPreload } from '@/hooks/usePaginationPreload'
 import type { PaginatedResponse } from '@/types'
 import { Transaction } from '@/types/transaction.ts'
 import { Category, CategoryType } from '@/types/category.ts'
@@ -60,7 +63,7 @@ export default function TransactionListPage() {
     minAmount: undefined,
     maxAmount: undefined,
     page: 0,
-    size: 10
+    size: 20 // Optimized: increased from 10 to 20 (backend optimization recommendation)
   })
 
   // Sorting state
@@ -136,11 +139,11 @@ export default function TransactionListPage() {
     fetchCategories()
   }, [])
 
-  // Debounce search term (300ms delay)
+  // Debounce search term (200ms delay - optimized for faster backend)
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm)
-    }, 300)
+    }, 200) // Optimized: reduced from 300ms to 200ms (backend is now 75% faster)
 
     return () => clearTimeout(timer)
   }, [searchTerm])
@@ -196,12 +199,15 @@ export default function TransactionListPage() {
 
       const searchRequest = builder.buildRequest({
         page: filters.page ?? 0,
-        size: filters.size ?? 10,
+        size: filters.size ?? 20,
         sortBy: sortBy,
         sortOrder: sortOrder
       })
 
-      const data = await transactionApi.search(searchRequest)
+      // Track API performance
+      const data = await apiPerformance.track('search_transactions', () =>
+        transactionApi.search(searchRequest)
+      )
       setPaginatedData(data)
     } catch (err) {
       setError('Failed to load transactions')
@@ -219,14 +225,34 @@ export default function TransactionListPage() {
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return
 
+    // Optimistic update: immediately remove from UI
+    const previousData = paginatedData
+    if (paginatedData) {
+      const updatedContent = paginatedData.content.filter(t => t.id !== deleteTarget.id)
+      setPaginatedData({
+        ...paginatedData,
+        content: updatedContent,
+        totalElements: paginatedData.totalElements - 1
+      })
+    }
+
     try {
-      await transactionApi.delete(deleteTarget.id)
+      // Track delete performance
+      await apiPerformance.track('delete_transaction', () =>
+        transactionApi.delete(deleteTarget.id)
+      )
       toast.success('Transaction deleted successfully')
+      // Refresh to get accurate data from server
       fetchTransactions()
     } catch (err: any) {
       console.error('Failed to delete transaction:', err)
       const errorMessage = err.response?.data?.message || 'Failed to delete transaction'
       toast.error(errorMessage)
+
+      // Rollback optimistic update on error
+      if (previousData) {
+        setPaginatedData(previousData)
+      }
     } finally {
       setDeleteTarget(null)
     }
@@ -310,7 +336,55 @@ export default function TransactionListPage() {
     filters.categoryId || filters.startDate || filters.endDate ||
     filters.minAmount !== undefined || filters.maxAmount !== undefined
 
-  if (isLoading && !paginatedData) {
+  // Use delayed loading to prevent flash of loading spinner for fast operations
+  // But always wait for initial data load
+  const shouldShowLoading = isLoading && !paginatedData
+  const showDelayedLoading = useDelayedLoading(shouldShowLoading)
+
+  // Preload next page for instant pagination
+  const preloadNextPage = async (page: number) => {
+    const builder = new CriteriaBuilder()
+
+    if (debouncedSearchTerm.trim() && debouncedSearchTerm.trim().length >= 2) {
+      builder.like('description', debouncedSearchTerm.trim())
+    }
+    if (filters.categoryId) {
+      builder.equals('categoryId', filters.categoryId)
+    }
+    if (filters.startDate && filters.endDate) {
+      builder.dateRange('date', filters.startDate, filters.endDate)
+    } else if (filters.startDate) {
+      builder.add('date', 'GREATER_THAN_OR_EQUAL', filters.startDate)
+    } else if (filters.endDate) {
+      builder.add('date', 'LESS_THAN_OR_EQUAL', filters.endDate)
+    }
+    if (filters.minAmount !== undefined && filters.maxAmount !== undefined) {
+      builder.amountRange('amount', filters.minAmount, filters.maxAmount)
+    } else if (filters.minAmount !== undefined) {
+      builder.minAmount('amount', filters.minAmount)
+    } else if (filters.maxAmount !== undefined) {
+      builder.maxAmount('amount', filters.maxAmount)
+    }
+
+    const searchRequest = builder.buildRequest({
+      page,
+      size: filters.size ?? 20,
+      sortBy: sortBy,
+      sortOrder: sortOrder
+    })
+
+    // Preload in background (don't update UI)
+    await transactionApi.search(searchRequest)
+  }
+
+  usePaginationPreload(
+    paginatedData?.currentPage ?? 0,
+    paginatedData?.totalPages ?? 0,
+    preloadNextPage
+  )
+
+  // Show loading state if we're waiting for initial data or if delayed loading threshold is reached
+  if (shouldShowLoading && (showDelayedLoading || !paginatedData)) {
     return (
       <Layout>
         <div className="flex h-[60vh] items-center justify-center">

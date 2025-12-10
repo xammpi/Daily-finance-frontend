@@ -218,3 +218,23 @@ export interface SearchRequest {
    */
   sortOrder?: 'ASC' | 'DESC'
 }
+
+/**
+ * Transaction Search Summary
+ * Aggregated information for search results
+ */
+export interface TransactionSearchSummary {
+  totalAmount: number
+  transactionCount: number
+  totalExpenseAmount: number
+  totalIncomeAmount: number
+}
+
+/**
+ * Transaction Search Response
+ * Includes both paginated transactions and summary
+ */
+export interface TransactionSearchResponse<T> {
+  transactions: PaginatedResponse<T>
+  summary: TransactionSearchSummary
+}

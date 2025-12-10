@@ -2,7 +2,8 @@ import apiClient from './client'
 import type {
   ExpenseStatistics,
   PaginatedResponse,
-  SearchRequest
+  SearchRequest,
+  TransactionSearchResponse
 } from '@/types'
 import { Transaction, TransactionRequest } from '@/types/transaction.ts'
 
@@ -12,14 +13,16 @@ export const transactionApi = {
    * @returns All expenses sorted by date descending
    */
   async getAll(): Promise<Transaction[]> {
-    const response = await apiClient.post<PaginatedResponse<Transaction>>('/transactions/search', {
+    const response = await apiClient.post<TransactionSearchResponse<Transaction>>('/transactions/search', {
       criteria: [],
       page: 0,
-      size: 1000,
+      size: 50, // Optimized: reduced from 1000 to 50 (backend optimization recommendation)
       sortBy: 'date',
       sortOrder: 'DESC',
     })
-    return response.data.content
+    // Backend returns { transactions: {...}, summary: {...} }
+    // Extract just the content array
+    return response.data.transactions.content
   },
 
   /**
@@ -30,11 +33,13 @@ export const transactionApi = {
    * @returns Paginated response with matching expenses
    */
   async search(request: SearchRequest): Promise<PaginatedResponse<Transaction>> {
-    const response = await apiClient.post<PaginatedResponse<Transaction>>(
+    const response = await apiClient.post<TransactionSearchResponse<Transaction>>(
       '/transactions/search',
       request
     )
-    return response.data
+    // Backend returns { transactions: {...}, summary: {...} }
+    // Extract just the transactions pagination data
+    return response.data.transactions
   },
 
   async getById(id: number): Promise<Transaction> {

@@ -25,3 +25,6 @@ export {
 
 // Balance Manager
 export { BalanceManager, balanceManager } from './BalanceManager'
+
+// API Performance Monitoring
+export { apiPerformance } from './apiPerformance'

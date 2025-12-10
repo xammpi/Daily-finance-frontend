@@ -14,6 +14,8 @@ import {
 } from 'lucide-react'
 import { transactionApi } from '@/api/transaction.ts'
 import { useBalance } from '@/hooks/useBalance'
+import { useDelayedLoading } from '@/hooks/useDelayedLoading'
+import { apiPerformance } from '@/utils/apiPerformance'
 import Layout from '@/components/Layout'
 import TransactionModal from '@/components/TransactionModal.tsx'
 import ConfirmDialog from '@/components/ConfirmDialog'
@@ -47,9 +49,11 @@ export default function DashboardPage() {
   const fetchDashboardData = async () => {
     try {
       setIsLoading(true)
+
+      // Track API performance for both calls
       const [expensesData, stats] = await Promise.all([
-        transactionApi.getAll(),
-        transactionApi.getStatistics(),
+        apiPerformance.track('get_all_transactions', () => transactionApi.getAll()),
+        apiPerformance.track('get_statistics', () => transactionApi.getStatistics()),
       ])
 
       console.log('Dashboard data fetched:', {
@@ -100,9 +104,18 @@ export default function DashboardPage() {
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return
 
+    // Optimistic update: immediately remove from UI
+    const previousExpenses = expenses
+    setExpenses(expenses.filter(e => e.id !== deleteTarget.id))
+
     try {
-      await transactionApi.delete(deleteTarget.id)
+      // Track delete performance
+      await apiPerformance.track('delete_transaction', () =>
+        transactionApi.delete(deleteTarget.id)
+      )
       toast.success('Transaction deleted successfully')
+
+      // Refresh data from server
       await Promise.all([
         fetchDashboardData(),
         refreshBalance()
@@ -111,6 +124,9 @@ export default function DashboardPage() {
       console.error('Failed to delete transaction:', err)
       const errorMessage = err.response?.data?.message || 'Failed to delete transaction'
       toast.error(errorMessage)
+
+      // Rollback optimistic update on error
+      setExpenses(previousExpenses)
     } finally {
       setDeleteTarget(null)
     }
@@ -119,7 +135,12 @@ export default function DashboardPage() {
   // Show loading state if either wallet or dashboard data is loading
   const isPageLoading = isLoading || isBalanceLoading
 
-  if (isPageLoading) {
+  // Use delayed loading to prevent flash of loading spinner for fast operations
+  // But always wait for initial data load
+  const showDelayedLoading = useDelayedLoading(isPageLoading)
+
+  // Show loading if still loading AND either delay passed OR we have no data yet
+  if (isPageLoading && (showDelayedLoading || !wallet || !statistics)) {
     return (
       <Layout>
         <div className="flex min-h-[60vh] items-center justify-center">

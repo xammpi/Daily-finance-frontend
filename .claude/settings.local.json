@@ -27,7 +27,8 @@
       "Bash(grep:*)",
       "Bash(find:*)",
       "Bash(for file in /Users/rekatun/WebstormProjects/Daily-finance-frontend/src/api/*.ts)",
-      "Bash(timeout 10 npx tsc:*)"
+      "Bash(timeout 10 npx tsc:*)",
+      "Bash(chmod:*)"
     ],
     "deny": [],
     "ask": []
