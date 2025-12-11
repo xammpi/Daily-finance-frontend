@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   FolderOpen,
@@ -18,12 +18,17 @@ import { categoriesApi } from '@/api/categories'
 import Layout from '@/components/Layout'
 import Pagination from '@/components/Pagination'
 import { CriteriaBuilder } from '@/utils/CriteriaBuilder'
-import { Category } from '@/types/category.ts'
-import { CategoryType } from '@/types/category'
+import { Category } from '@/types'
+import { CategoryType } from '@/types'
 import type { PaginatedResponse } from '@/types'
 import CategoryModal from '@/components/CategoryModal.tsx'
 import ConfirmDialog from '@/components/ConfirmDialog'
+import { extractErrorMessage } from '@/utils/errorHandler'
+import { toast } from '@/lib/toast'
+import { useDebounce } from '@/hooks'
+import { SEARCH_MIN_CHARACTERS, DEFAULT_PAGE_SIZE_CATEGORIES } from '@/constants'
 
+import { logger } from '@/utils/logger'
 const categoryColors = [
   { gradient: 'from-indigo-500 to-purple-600', bg: 'bg-indigo-500', light: 'bg-indigo-50', text: 'text-indigo-700' },
   { gradient: 'from-blue-500 to-indigo-600', bg: 'bg-blue-500', light: 'bg-blue-50', text: 'text-blue-700' },
@@ -61,7 +66,7 @@ export default function CategoryListPage() {
   const [filters, setFilters] = useState<CategoryFilterParams>({
     type: undefined,
     page: 0,
-    size: 12
+    size: DEFAULT_PAGE_SIZE_CATEGORIES
   })
 
   // Sorting state
@@ -70,7 +75,7 @@ export default function CategoryListPage() {
 
   // Text search state
   const [searchTerm, setSearchTerm] = useState('')
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
+  const debouncedSearchTerm = useDebounce(searchTerm, 300)
 
   const handleOpenModal = (categoryId?: number) => {
     setEditingCategory(categoryId)
@@ -86,24 +91,7 @@ export default function CategoryListPage() {
     setEditingCategory(undefined)
   }
 
-  const handleModalSuccess = () => {
-    fetchCategories()
-  }
-
-  // Debounce search term (300ms delay)
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm)
-    }, 300)
-
-    return () => clearTimeout(timer)
-  }, [searchTerm])
-
-  useEffect(() => {
-    fetchCategories()
-  }, [filters.type, filters.page, filters.size, sortBy, sortOrder, debouncedSearchTerm])
-
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       setIsLoading(true)
       setError(null)
@@ -111,8 +99,8 @@ export default function CategoryListPage() {
       // Build search criteria
       const builder = new CriteriaBuilder()
 
-      // Add text search on name if search term exists (min 2 chars)
-      if (debouncedSearchTerm.trim() && debouncedSearchTerm.trim().length >= 2) {
+      // Add text search on name if search term exists
+      if (debouncedSearchTerm.trim() && debouncedSearchTerm.trim().length >= SEARCH_MIN_CHARACTERS) {
         builder.like('name', debouncedSearchTerm.trim())
       }
 
@@ -123,7 +111,7 @@ export default function CategoryListPage() {
 
       const searchRequest = builder.buildRequest({
         page: filters.page ?? 0,
-        size: filters.size ?? 12,
+        size: filters.size ?? DEFAULT_PAGE_SIZE_CATEGORIES,
         sortBy: sortBy,
         sortOrder: sortOrder
       })
@@ -132,11 +120,19 @@ export default function CategoryListPage() {
       setPaginatedData(data)
     } catch (err) {
       setError('Failed to load categories')
-      console.error(err)
+      logger.error('Error occurred', err)
     } finally {
       setIsLoading(false)
     }
+  }, [filters.type, filters.page, filters.size, sortBy, sortOrder, debouncedSearchTerm])
+
+  const handleModalSuccess = async () => {
+    await fetchCategories()
   }
+
+  useEffect(() => {
+    void fetchCategories()
+  }, [fetchCategories])
 
   const handleDelete = (id: number, name: string) => {
     setDeleteTarget({ id, name })
@@ -148,9 +144,12 @@ export default function CategoryListPage() {
 
     try {
       await categoriesApi.delete(deleteTarget.id)
-      fetchCategories()
-    } catch (err: any) {
-      console.error(err)
+      toast.success('Category deleted successfully')
+      await fetchCategories()
+    } catch (err) {
+      logger.error('Failed to delete category', err)
+      const errorMessage = extractErrorMessage(err)
+      toast.error(errorMessage)
     } finally {
       setDeleteTarget(null)
     }
@@ -161,8 +160,7 @@ export default function CategoryListPage() {
   }
 
   const clearFilters = () => {
-    setSearchTerm('')
-    setDebouncedSearchTerm('')
+    setSearchTerm('') // useDebounce hook will automatically update debouncedSearchTerm
     setFilters({
       type: undefined,
       page: 0,
@@ -215,9 +213,9 @@ export default function CategoryListPage() {
   if (isLoading && !paginatedData) {
     return (
       <Layout>
-        <div className="flex h-[60vh] items-center justify-center">
+        <div className="flex h-[60vh] items-center justify-center" role="status" aria-live="polite">
           <div className="text-center">
-            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-indigo-600" />
+            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-indigo-600" aria-hidden="true" />
             <p className="text-slate-600">Loading categories...</p>
           </div>
         </div>
@@ -228,9 +226,9 @@ export default function CategoryListPage() {
   if (error) {
     return (
       <Layout>
-        <div className="flex h-[60vh] items-center justify-center">
+        <div className="flex h-[60vh] items-center justify-center" role="alert" aria-live="assertive">
           <div className="text-center">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100" aria-hidden="true">
               <FolderOpen className="h-8 w-8 text-red-600" />
             </div>
             <p className="text-lg font-medium text-red-600">{error}</p>
@@ -269,7 +267,7 @@ export default function CategoryListPage() {
           <div className="flex flex-col gap-3 md:flex-row md:gap-4">
             {/* Search Input */}
             <div className="relative flex-1">
-              <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+              <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" aria-hidden="true" />
               <input
                 type="text"
                 placeholder="Search categories (min 2 characters)..."
@@ -279,6 +277,7 @@ export default function CategoryListPage() {
                   setFilters((prev: CategoryFilterParams) => ({ ...prev, page: 0 }))
                 }}
                 className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-12 pr-4 transition-all focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                aria-label="Search categories by name or description"
               />
               {searchTerm.trim() && searchTerm.trim().length < 2 && (
                 <div className="absolute left-0 top-full mt-1 rounded-lg bg-amber-50 px-3 py-1 text-xs text-amber-700 shadow-sm">
@@ -515,15 +514,18 @@ export default function CategoryListPage() {
                         <button
                           onClick={() => handleOpenModal(category.id)}
                           className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-all hover:scale-105 hover:shadow-lg"
+                          aria-label={`Edit ${category.name} category`}
                         >
-                          <Edit2 className="h-4 w-4" />
+                          <Edit2 className="h-4 w-4" aria-hidden="true" />
                           Edit
                         </button>
                         <button
                           onClick={() => handleDelete(category.id, category.name)}
                           className="flex items-center justify-center gap-2 rounded-xl border-2 border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-600 transition-all hover:border-red-300 hover:bg-red-100"
+                          aria-label={`Delete ${category.name} category`}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4" aria-hidden="true" />
+                          Delete
                         </button>
                       </div>
                     </div>

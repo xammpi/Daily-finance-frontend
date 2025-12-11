@@ -15,16 +15,15 @@ export {
 
 // Amount utilities
 export {
-  formatAmount,
   formatCurrency,
-  parseAmount,
   isValidAmount,
-  isSufficientBalance,
-  roundAmount,
 } from './amountUtils'
 
 // Balance Manager
 export { BalanceManager, balanceManager } from './BalanceManager'
 
-// API Performance Monitoring
-export { apiPerformance } from './apiPerformance'
+// Error Handling
+export { extractErrorMessage, isNetworkError, isAuthError } from './errorHandler'
+
+// Input Validation
+export { sanitizeString, validateAmount, validateDescription, validateCategoryName } from './validation'

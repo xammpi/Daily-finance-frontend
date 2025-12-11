@@ -9,8 +9,8 @@ interface AuthState {
   isAuthenticated: boolean
   isLoading: boolean
   error: string | null
-  login: (data: LoginRequest) => Promise<void>
-  register: (data: RegisterRequest) => Promise<void>
+  login: (_data: LoginRequest) => Promise<void>
+  register: (_data: RegisterRequest) => Promise<void>
   logout: () => void
   clearError: () => void
   checkAuth: () => void
@@ -18,8 +18,8 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>(set => ({
   user: null,
-  token: localStorage.getItem('accessToken'),
-  isAuthenticated: !!localStorage.getItem('accessToken'),
+  token: sessionStorage.getItem('accessToken'),
+  isAuthenticated: !!sessionStorage.getItem('accessToken'),
   isLoading: false,
   error: null,
 
@@ -27,7 +27,7 @@ export const useAuthStore = create<AuthState>(set => ({
     set({ isLoading: true, error: null })
     try {
       const response = await authApi.login(data)
-      localStorage.setItem('accessToken', response.accessToken)
+      sessionStorage.setItem('accessToken', response.accessToken)
 
       // Fetch full user profile (includes wallet with currency)
       const user = await userApi.getProfile()
@@ -50,7 +50,7 @@ export const useAuthStore = create<AuthState>(set => ({
     set({ isLoading: true, error: null })
     try {
       const response = await authApi.register(data)
-      localStorage.setItem('accessToken', response.accessToken)
+      sessionStorage.setItem('accessToken', response.accessToken)
 
       // Fetch full user profile (includes wallet with selected currency)
       const user = await userApi.getProfile()
@@ -70,7 +70,7 @@ export const useAuthStore = create<AuthState>(set => ({
   },
 
   logout: () => {
-    localStorage.removeItem('accessToken')
+    sessionStorage.removeItem('accessToken')
     set({
       user: null,
       token: null,
@@ -81,7 +81,7 @@ export const useAuthStore = create<AuthState>(set => ({
   clearError: () => set({ error: null }),
 
   checkAuth: () => {
-    const token = localStorage.getItem('accessToken')
+    const token = sessionStorage.getItem('accessToken')
     set({
       token,
       isAuthenticated: !!token,

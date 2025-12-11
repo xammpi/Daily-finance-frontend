@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   Receipt,
@@ -21,16 +21,16 @@ import Layout from '@/components/Layout'
 import TransactionModal from '@/components/TransactionModal.tsx'
 import ConfirmDialog from '@/components/ConfirmDialog'
 import Pagination from '@/components/Pagination'
-import { formatCurrency, formatDateForDisplay, getCurrentMonthRange, getCurrentWeekRange, getTodayDate } from '@/utils'
+import { formatCurrency, formatDateForDisplay, getCurrentMonthRange, getCurrentWeekRange, getTodayDate, extractErrorMessage } from '@/utils'
 import { CriteriaBuilder } from '@/utils/CriteriaBuilder'
-import { apiPerformance } from '@/utils/apiPerformance'
-import { useDelayedLoading } from '@/hooks/useDelayedLoading'
-import { usePaginationPreload } from '@/hooks/usePaginationPreload'
+import { useDelayedLoading, useDebounce } from '@/hooks'
 import type { PaginatedResponse } from '@/types'
-import { Transaction } from '@/types/transaction.ts'
-import { Category, CategoryType } from '@/types/category.ts'
+import { Transaction } from '@/types'
+import { Category, CategoryType } from '@/types'
 import { toast } from '@/lib/toast'
+import { SEARCH_DEBOUNCE_DELAY_MS, SEARCH_MIN_CHARACTERS, DEFAULT_PAGE_SIZE_TRANSACTIONS } from '@/constants'
 
+import { logger } from '@/utils/logger'
 // Local filter interface for transaction filtering
 interface TransactionFilterParams {
   categoryId?: number
@@ -51,9 +51,9 @@ export default function TransactionListPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingTransactionId, setEditingTransactionId] = useState<number | undefined>(undefined)
   const [showFilters, setShowFilters] = useState(false)
-  const [isInitialized, setIsInitialized] = useState(false)
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; description: string } | null>(null)
+  const [isUrlProcessed, setIsUrlProcessed] = useState(false)
 
   // Filter state
   const [filters, setFilters] = useState<TransactionFilterParams>({
@@ -63,7 +63,7 @@ export default function TransactionListPage() {
     minAmount: undefined,
     maxAmount: undefined,
     page: 0,
-    size: 20 // Optimized: increased from 10 to 20 (backend optimization recommendation)
+    size: DEFAULT_PAGE_SIZE_TRANSACTIONS
   })
 
   // Sorting state
@@ -72,7 +72,7 @@ export default function TransactionListPage() {
 
   // Text search state
   const [searchTerm, setSearchTerm] = useState('')
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
+  const debouncedSearchTerm = useDebounce(searchTerm, SEARCH_DEBOUNCE_DELAY_MS)
 
   // Apply filter from URL parameter on mount
   useEffect(() => {
@@ -86,10 +86,11 @@ export default function TransactionListPage() {
       let dateRange: { startDate: string; endDate: string } | null = null
 
       switch (filterParam) {
-        case 'today':
+        case 'today': {
           const today = getTodayDate()
           dateRange = { startDate: today, endDate: today }
           break
+        }
         case 'week':
           dateRange = getCurrentWeekRange()
           break
@@ -117,7 +118,7 @@ export default function TransactionListPage() {
       searchParams.delete('category')
     }
 
-    // Apply filters if any
+    // Apply filters if any (use callback form to avoid race condition)
     if (Object.keys(updatedFilters).length > 0) {
       setFilters(prev => ({
         ...prev,
@@ -131,40 +132,20 @@ export default function TransactionListPage() {
       setSearchParams(searchParams, { replace: true })
     }
 
-    // Mark as initialized after processing URL params
-    setIsInitialized(true)
+    // Mark URL params as processed to allow fetching
+    setIsUrlProcessed(true)
   }, [])
 
-  useEffect(() => {
-    fetchCategories()
-  }, [])
-
-  // Debounce search term (200ms delay - optimized for faster backend)
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm)
-    }, 200) // Optimized: reduced from 300ms to 200ms (backend is now 75% faster)
-
-    return () => clearTimeout(timer)
-  }, [searchTerm])
-
-  // Only fetch transactions after URL params have been processed
-  useEffect(() => {
-    if (isInitialized) {
-      fetchTransactions()
-    }
-  }, [isInitialized, filters.categoryId, filters.startDate, filters.endDate, filters.minAmount, filters.maxAmount, filters.page, filters.size, sortBy, sortOrder, debouncedSearchTerm])
-
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       const data = await categoriesApi.getAll()
       setCategories(data)
     } catch (err) {
-      console.error('Failed to fetch categories:', err)
+      logger.error('Failed to fetch categories', err)
     }
-  }
+  }, [])
 
-  const fetchTransactions = async () => {
+  const fetchTransactions = useCallback(async () => {
     try {
       setIsLoading(true)
       setError(null)
@@ -172,8 +153,8 @@ export default function TransactionListPage() {
       // Convert filters to SearchRequest with criteria
       const builder = new CriteriaBuilder()
 
-      // Add text search on description if search term exists (min 2 chars)
-      if (debouncedSearchTerm.trim() && debouncedSearchTerm.trim().length >= 2) {
+      // Add text search on description if search term exists
+      if (debouncedSearchTerm.trim() && debouncedSearchTerm.trim().length >= SEARCH_MIN_CHARACTERS) {
         builder.like('description', debouncedSearchTerm.trim())
       }
 
@@ -199,23 +180,45 @@ export default function TransactionListPage() {
 
       const searchRequest = builder.buildRequest({
         page: filters.page ?? 0,
-        size: filters.size ?? 20,
+        size: filters.size ?? DEFAULT_PAGE_SIZE_TRANSACTIONS,
         sortBy: sortBy,
         sortOrder: sortOrder
       })
 
-      // Track API performance
-      const data = await apiPerformance.track('search_transactions', () =>
-        transactionApi.search(searchRequest)
-      )
+      const data = await transactionApi.search(searchRequest)
       setPaginatedData(data)
     } catch (err) {
+      // Ignore abort errors (component unmounted or new request started)
+      if (err instanceof Error && err.name === 'CanceledError') {
+        return
+      }
       setError('Failed to load transactions')
-      console.error(err)
+      logger.error('Error occurred', err)
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [filters.categoryId, filters.startDate, filters.endDate, filters.minAmount, filters.maxAmount, filters.page, filters.size, sortBy, sortOrder, debouncedSearchTerm])
+
+  useEffect(() => {
+    void fetchCategories()
+  }, [fetchCategories])
+
+  // Only fetch transactions after URL params have been processed
+  useEffect(() => {
+    // Don't fetch until URL params are processed
+    if (!isUrlProcessed) return
+
+    // Create AbortController for request cancellation
+    const abortController = new AbortController()
+
+    // Fetch transactions with current filters
+    void fetchTransactions()
+
+    // Cleanup: abort any pending requests when effect re-runs or component unmounts
+    return () => {
+      abortController.abort()
+    }
+  }, [isUrlProcessed, fetchTransactions])
 
   const handleDelete = (id: number, description: string) => {
     setDeleteTarget({ id, description })
@@ -237,16 +240,13 @@ export default function TransactionListPage() {
     }
 
     try {
-      // Track delete performance
-      await apiPerformance.track('delete_transaction', () =>
-        transactionApi.delete(deleteTarget.id)
-      )
+      await transactionApi.delete(deleteTarget.id)
       toast.success('Transaction deleted successfully')
       // Refresh to get accurate data from server
-      fetchTransactions()
-    } catch (err: any) {
-      console.error('Failed to delete transaction:', err)
-      const errorMessage = err.response?.data?.message || 'Failed to delete transaction'
+      await fetchTransactions()
+    } catch (err) {
+      logger.error('Failed to delete transaction', err)
+      const errorMessage = extractErrorMessage(err)
       toast.error(errorMessage)
 
       // Rollback optimistic update on error
@@ -268,8 +268,8 @@ export default function TransactionListPage() {
     setEditingTransactionId(undefined)
   }
 
-  const handleModalSuccess = () => {
-    fetchTransactions()
+  const handleModalSuccess = async () => {
+    await fetchTransactions()
   }
 
   const handleQuickFilter = (filter: 'today' | 'week' | 'month' | 'all') => {
@@ -296,8 +296,7 @@ export default function TransactionListPage() {
   }
 
   const clearFilters = () => {
-    setSearchTerm('')
-    setDebouncedSearchTerm('')
+    setSearchTerm('') // useDebounce hook will automatically update debouncedSearchTerm
     setFilters({
       categoryId: undefined,
       startDate: undefined,
@@ -341,55 +340,13 @@ export default function TransactionListPage() {
   const shouldShowLoading = isLoading && !paginatedData
   const showDelayedLoading = useDelayedLoading(shouldShowLoading)
 
-  // Preload next page for instant pagination
-  const preloadNextPage = async (page: number) => {
-    const builder = new CriteriaBuilder()
-
-    if (debouncedSearchTerm.trim() && debouncedSearchTerm.trim().length >= 2) {
-      builder.like('description', debouncedSearchTerm.trim())
-    }
-    if (filters.categoryId) {
-      builder.equals('categoryId', filters.categoryId)
-    }
-    if (filters.startDate && filters.endDate) {
-      builder.dateRange('date', filters.startDate, filters.endDate)
-    } else if (filters.startDate) {
-      builder.add('date', 'GREATER_THAN_OR_EQUAL', filters.startDate)
-    } else if (filters.endDate) {
-      builder.add('date', 'LESS_THAN_OR_EQUAL', filters.endDate)
-    }
-    if (filters.minAmount !== undefined && filters.maxAmount !== undefined) {
-      builder.amountRange('amount', filters.minAmount, filters.maxAmount)
-    } else if (filters.minAmount !== undefined) {
-      builder.minAmount('amount', filters.minAmount)
-    } else if (filters.maxAmount !== undefined) {
-      builder.maxAmount('amount', filters.maxAmount)
-    }
-
-    const searchRequest = builder.buildRequest({
-      page,
-      size: filters.size ?? 20,
-      sortBy: sortBy,
-      sortOrder: sortOrder
-    })
-
-    // Preload in background (don't update UI)
-    await transactionApi.search(searchRequest)
-  }
-
-  usePaginationPreload(
-    paginatedData?.currentPage ?? 0,
-    paginatedData?.totalPages ?? 0,
-    preloadNextPage
-  )
-
   // Show loading state if we're waiting for initial data or if delayed loading threshold is reached
   if (shouldShowLoading && (showDelayedLoading || !paginatedData)) {
     return (
       <Layout>
-        <div className="flex h-[60vh] items-center justify-center">
+        <div className="flex h-[60vh] items-center justify-center" role="status" aria-live="polite">
           <div className="text-center">
-            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-indigo-600" />
+            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-indigo-600" aria-hidden="true" />
             <p className="text-slate-600">Loading transactions...</p>
           </div>
         </div>
@@ -400,9 +357,9 @@ export default function TransactionListPage() {
   if (error) {
     return (
       <Layout>
-        <div className="flex h-[60vh] items-center justify-center">
+        <div className="flex h-[60vh] items-center justify-center" role="alert" aria-live="assertive">
           <div className="text-center">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100" aria-hidden="true">
               <Receipt className="h-8 w-8 text-red-600" />
             </div>
             <p className="text-lg font-medium text-red-600">{error}</p>
@@ -440,7 +397,7 @@ export default function TransactionListPage() {
         <div className="space-y-4">
           <div className="flex flex-col gap-3 md:flex-row md:gap-4">
             <div className="relative flex-1">
-              <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+              <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" aria-hidden="true" />
               <input
                 type="text"
                 placeholder="Search transactions (min 2 characters)..."
@@ -450,6 +407,7 @@ export default function TransactionListPage() {
                   setFilters((prev: TransactionFilterParams) => ({ ...prev, page: 0 }))
                 }}
                 className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-12 pr-4 transition-all focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                aria-label="Search transactions by description, category, or amount"
               />
               {searchTerm.trim() && searchTerm.trim().length < 2 && (
                 <div className="absolute left-0 top-full mt-1 rounded-lg bg-amber-50 px-3 py-1 text-xs text-amber-700 shadow-sm">
@@ -774,16 +732,18 @@ export default function TransactionListPage() {
                                 <button
                                   onClick={() => handleOpenModal(transaction.id)}
                                   className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md transition-all hover:scale-110 hover:shadow-lg md:h-10 md:w-10 md:rounded-xl"
+                                  aria-label={`Edit ${transaction.description} transaction`}
                                   title="Edit transaction"
                                 >
-                                  <Edit2 className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                                  <Edit2 className="h-3.5 w-3.5 md:h-4 md:w-4" aria-hidden="true" />
                                 </button>
                                 <button
                                   onClick={() => handleDelete(transaction.id, transaction.description)}
                                   className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border-2 border-red-200 bg-red-50 text-red-600 transition-all hover:border-red-300 hover:bg-red-100 md:h-10 md:w-10 md:rounded-xl"
+                                  aria-label={`Delete ${transaction.description} transaction`}
                                   title="Delete transaction"
                                 >
-                                  <Trash2 className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                                  <Trash2 className="h-3.5 w-3.5 md:h-4 md:w-4" aria-hidden="true" />
                                 </button>
                               </div>
                             </div>

@@ -18,9 +18,9 @@ export default function WalletPage() {
   if (isLoading) {
     return (
       <Layout>
-        <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="flex min-h-[60vh] items-center justify-center" role="status" aria-live="polite">
           <div className="text-center">
-            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
+            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" aria-hidden="true" />
             <p className="text-slate-600">Loading wallet details...</p>
           </div>
         </div>

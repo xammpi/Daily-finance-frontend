@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Wallet,
@@ -15,69 +15,51 @@ import {
 import { transactionApi } from '@/api/transaction.ts'
 import { useBalance } from '@/hooks/useBalance'
 import { useDelayedLoading } from '@/hooks/useDelayedLoading'
-import { apiPerformance } from '@/utils/apiPerformance'
 import Layout from '@/components/Layout'
 import TransactionModal from '@/components/TransactionModal.tsx'
 import ConfirmDialog from '@/components/ConfirmDialog'
-import { formatCurrency, formatDateShort } from '@/utils'
-import type { ExpenseStatistics } from '@/types'
-import { Transaction } from '@/types/transaction.ts'
-import { CategoryType } from '@/types/category'
+import { formatCurrency, formatDateShort, extractErrorMessage } from '@/utils'
+import type { TransactionStatistics } from '@/types'
+import { Transaction } from '@/types'
+import { CategoryType } from '@/types'
 import { toast } from '@/lib/toast'
+import { logger } from '@/utils/logger'
 
 export default function DashboardPage() {
   const { wallet, refresh: refreshBalance, isLoading: isBalanceLoading } = useBalance()
   const [expenses, setExpenses] = useState<Transaction[]>([])
-  const [statistics, setStatistics] = useState<ExpenseStatistics | null>(null)
+  const [statistics, setStatistics] = useState<TransactionStatistics | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingTransactionId, setEditingTransactionId] = useState<number | undefined>(undefined)
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; description: string } | null>(null)
 
-  // Debug wallet data
-  useEffect(() => {
-    if (wallet) {
-      console.log('Wallet data:', wallet)
-    }
-  }, [wallet])
-
-  useEffect(() => {
-    fetchDashboardData()
-  }, [])
-
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
       setIsLoading(true)
 
-      // Track API performance for both calls
       const [expensesData, stats] = await Promise.all([
-        apiPerformance.track('get_all_transactions', () => transactionApi.getAll()),
-        apiPerformance.track('get_statistics', () => transactionApi.getStatistics()),
+        transactionApi.getAll(),
+        transactionApi.getStatistics(),
       ])
-
-      console.log('Dashboard data fetched:', {
-        expensesCount: expensesData.length,
-        statistics: stats
-      })
 
       setExpenses(expensesData.slice(0, 5))
       setStatistics(stats)
-    } catch (error: any) {
-      console.error('Failed to fetch dashboard data:', error)
-      console.error('Error details:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status
-      })
-
-      toast.error('Failed to load dashboard data. Please check if the backend is running.')
+    } catch (error) {
+      logger.error('Failed to fetch dashboard data', error)
+      const errorMessage = extractErrorMessage(error)
+      toast.error(errorMessage || 'Failed to load dashboard data. Please check if the backend is running.')
       setExpenses([])
       setStatistics(null)
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    void fetchDashboardData()
+  }, [fetchDashboardData])
 
   const handleOpenModal = (transactionId?: number) => {
     setEditingTransactionId(transactionId)
@@ -109,10 +91,7 @@ export default function DashboardPage() {
     setExpenses(expenses.filter(e => e.id !== deleteTarget.id))
 
     try {
-      // Track delete performance
-      await apiPerformance.track('delete_transaction', () =>
-        transactionApi.delete(deleteTarget.id)
-      )
+      await transactionApi.delete(deleteTarget.id)
       toast.success('Transaction deleted successfully')
 
       // Refresh data from server
@@ -120,9 +99,9 @@ export default function DashboardPage() {
         fetchDashboardData(),
         refreshBalance()
       ])
-    } catch (err: any) {
-      console.error('Failed to delete transaction:', err)
-      const errorMessage = err.response?.data?.message || 'Failed to delete transaction'
+    } catch (err) {
+      logger.error('Failed to delete transaction', err)
+      const errorMessage = extractErrorMessage(err)
       toast.error(errorMessage)
 
       // Rollback optimistic update on error
@@ -143,9 +122,9 @@ export default function DashboardPage() {
   if (isPageLoading && (showDelayedLoading || !wallet || !statistics)) {
     return (
       <Layout>
-        <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="flex min-h-[60vh] items-center justify-center" role="status" aria-live="polite">
           <div className="text-center">
-            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
+            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" aria-hidden="true" />
             <p className="text-slate-600">Loading dashboard...</p>
           </div>
         </div>
@@ -393,16 +372,18 @@ export default function DashboardPage() {
                           <button
                             onClick={() => handleOpenModal(expense.id)}
                             className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md transition-all hover:scale-110 hover:shadow-lg md:h-10 md:w-10 md:rounded-xl"
+                            aria-label={`Edit ${expense.description} transaction`}
                             title="Edit transaction"
                           >
-                            <Edit2 className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                            <Edit2 className="h-3.5 w-3.5 md:h-4 md:w-4" aria-hidden="true" />
                           </button>
                           <button
                             onClick={() => handleDelete(expense.id, expense.description)}
                             className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border-2 border-red-200 bg-red-50 text-red-600 transition-all hover:border-red-300 hover:bg-red-100 md:h-10 md:w-10 md:rounded-xl"
+                            aria-label={`Delete ${expense.description} transaction`}
                             title="Delete transaction"
                           >
-                            <Trash2 className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                            <Trash2 className="h-3.5 w-3.5 md:h-4 md:w-4" aria-hidden="true" />
                           </button>
                         </div>
                       </div>

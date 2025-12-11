@@ -1,11 +1,10 @@
 import apiClient from './client'
 import type {
-  ExpenseStatistics,
+  TransactionStatistics,
   PaginatedResponse,
-  SearchRequest,
-  TransactionSearchResponse
+  SearchRequest
 } from '@/types'
-import { Transaction, TransactionRequest } from '@/types/transaction.ts'
+import { Transaction, TransactionRequest } from '@/types'
 
 export const transactionApi = {
   /**
@@ -13,7 +12,7 @@ export const transactionApi = {
    * @returns All expenses sorted by date descending
    */
   async getAll(): Promise<Transaction[]> {
-    const response = await apiClient.post<TransactionSearchResponse<Transaction>>('/transactions/search', {
+    const response = await apiClient.post('/transactions/search', {
       criteria: [],
       page: 0,
       size: 50, // Optimized: reduced from 1000 to 50 (backend optimization recommendation)
@@ -33,7 +32,7 @@ export const transactionApi = {
    * @returns Paginated response with matching expenses
    */
   async search(request: SearchRequest): Promise<PaginatedResponse<Transaction>> {
-    const response = await apiClient.post<TransactionSearchResponse<Transaction>>(
+    const response = await apiClient.post(
       '/transactions/search',
       request
     )
@@ -43,17 +42,17 @@ export const transactionApi = {
   },
 
   async getById(id: number): Promise<Transaction> {
-    const response = await apiClient.get<Transaction>(`/transactions/${id}`)
+    const response = await apiClient.get(`/transactions/${id}`)
     return response.data
   },
 
   async create(data: TransactionRequest): Promise<Transaction> {
-    const response = await apiClient.post<Transaction>('/transactions', data)
+    const response = await apiClient.post('/transactions', data)
     return response.data
   },
 
   async update(id: number, data: TransactionRequest): Promise<Transaction> {
-    const response = await apiClient.put<Transaction>(`/transactions/${id}`, data)
+    const response = await apiClient.put(`/transactions/${id}`, data)
     return response.data
   },
 
@@ -61,8 +60,8 @@ export const transactionApi = {
     await apiClient.delete(`/transactions/${id}`)
   },
 
-  async getStatistics(): Promise<ExpenseStatistics> {
-    const response = await apiClient.get<ExpenseStatistics>('/transactions/statistics')
+  async getStatistics(): Promise<TransactionStatistics> {
+    const response = await apiClient.get('/transactions/statistics')
     return response.data
   },
 }

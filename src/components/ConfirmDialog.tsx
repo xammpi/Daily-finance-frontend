@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 interface ConfirmDialogProps {
   isOpen: boolean
   onClose: () => void
-  onConfirm: () => void
+  onConfirm: () => void | Promise<void>
   title: string
   message: string
   confirmText?: string
@@ -60,8 +60,8 @@ export default function ConfirmDialog({
 
   const styles = variantStyles[variant]
 
-  const handleConfirm = () => {
-    onConfirm()
+  const handleConfirm = async () => {
+    await onConfirm()
     onClose()
   }
 

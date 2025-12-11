@@ -11,7 +11,7 @@ import { useState, useEffect, useRef } from 'react'
  */
 export function useDelayedLoading(isLoading: boolean, delay: number = 100): boolean {
   const [showLoading, setShowLoading] = useState(false)
-  const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   useEffect(() => {
     // Clear any existing timeout

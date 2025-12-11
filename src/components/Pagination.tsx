@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-r
 interface PaginationProps {
   currentPage: number
   totalPages: number
-  onPageChange: (page: number) => void
+  onPageChange: (_page: number) => void
   isFirst: boolean
   isLast: boolean
 }
@@ -58,15 +58,16 @@ export default function Pagination({
   const pageNumbers = getPageNumbers()
 
   return (
-    <div className="flex items-center justify-center gap-1">
+    <nav aria-label="Pagination" className="flex items-center justify-center gap-1">
       {/* First page button */}
       <button
         onClick={() => onPageChange(0)}
         disabled={isFirst}
         className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+        aria-label="Go to first page"
         title="First page"
       >
-        <ChevronsLeft className="h-4 w-4" />
+        <ChevronsLeft className="h-4 w-4" aria-hidden="true" />
       </button>
 
       {/* Previous page button */}
@@ -74,9 +75,10 @@ export default function Pagination({
         onClick={() => onPageChange(currentPage - 1)}
         disabled={isFirst}
         className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+        aria-label="Go to previous page"
         title="Previous page"
       >
-        <ChevronLeft className="h-4 w-4" />
+        <ChevronLeft className="h-4 w-4" aria-hidden="true" />
       </button>
 
       {/* Page numbers */}
@@ -103,6 +105,8 @@ export default function Pagination({
                 ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
                 : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
             }`}
+            aria-label={`${isActive ? 'Current page, ' : ''}Go to page ${page + 1}`}
+            aria-current={isActive ? 'page' : undefined}
           >
             {page + 1}
           </button>
@@ -114,9 +118,10 @@ export default function Pagination({
         onClick={() => onPageChange(currentPage + 1)}
         disabled={isLast}
         className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+        aria-label="Go to next page"
         title="Next page"
       >
-        <ChevronRight className="h-4 w-4" />
+        <ChevronRight className="h-4 w-4" aria-hidden="true" />
       </button>
 
       {/* Last page button */}
@@ -124,10 +129,11 @@ export default function Pagination({
         onClick={() => onPageChange(totalPages - 1)}
         disabled={isLast}
         className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+        aria-label="Go to last page"
         title="Last page"
       >
-        <ChevronsRight className="h-4 w-4" />
+        <ChevronsRight className="h-4 w-4" aria-hidden="true" />
       </button>
-    </div>
+    </nav>
   )
 }

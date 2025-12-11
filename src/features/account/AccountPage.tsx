@@ -1,10 +1,12 @@
-import { useState, useEffect, FormEvent } from 'react'
+import { useState, useEffect, FormEvent, useCallback } from 'react'
 import { User, Mail, Lock, Save, Shield, UserCircle } from 'lucide-react'
-import { userApi, UpdateProfileRequest, ChangePasswordRequest } from '@/api/user'
-import type { User as UserType } from '@/types'
+import { userApi } from '@/api/user'
+import type { User as UserType, UpdateProfileRequest, ChangePasswordRequest } from '@/types'
 import Layout from '@/components/Layout'
 import { toast } from '@/lib/toast'
+import { extractErrorMessage } from '@/utils/errorHandler'
 
+import { logger } from '@/utils/logger'
 export default function AccountPage() {
   const [user, setUser] = useState<UserType | null>(null)
   const [isLoadingProfile, setIsLoadingProfile] = useState(true)
@@ -21,11 +23,8 @@ export default function AccountPage() {
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
 
-  useEffect(() => {
-    fetchProfile()
-  }, [])
-
-  const fetchProfile = async () => {
+  // Memoize fetchProfile to avoid recreating on every render
+  const fetchProfile = useCallback(async () => {
     try {
       setIsLoadingProfile(true)
       const userData = await userApi.getProfile()
@@ -34,12 +33,16 @@ export default function AccountPage() {
       setLastName(userData.lastName)
       setEmail(userData.email)
     } catch (err) {
-      console.error('Failed to fetch profile:', err)
+      logger.error('Failed to fetch profile', err)
       toast.error('Failed to load profile')
     } finally {
       setIsLoadingProfile(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    void fetchProfile()
+  }, [fetchProfile])
 
   const handleUpdateProfile = async (e: FormEvent) => {
     e.preventDefault()
@@ -55,9 +58,9 @@ export default function AccountPage() {
       const updatedUser = await userApi.updateProfile(profileData)
       setUser(updatedUser)
       toast.success('Profile updated successfully')
-    } catch (err: any) {
-      console.error('Failed to update profile:', err)
-      const errorMessage = err.response?.data?.message || 'Failed to update profile'
+    } catch (err) {
+      logger.error('Failed to update profile', err)
+      const errorMessage = extractErrorMessage(err)
       toast.error(errorMessage)
     } finally {
       setIsUpdatingProfile(false)
@@ -92,9 +95,9 @@ export default function AccountPage() {
       setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
-    } catch (err: any) {
-      console.error('Failed to change password:', err)
-      const errorMessage = err.response?.data?.message || 'Failed to change password'
+    } catch (err) {
+      logger.error('Failed to change password', err)
+      const errorMessage = extractErrorMessage(err)
       toast.error(errorMessage)
     } finally {
       setIsChangingPassword(false)
@@ -104,9 +107,9 @@ export default function AccountPage() {
   if (isLoadingProfile) {
     return (
       <Layout>
-        <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="flex min-h-[60vh] items-center justify-center" role="status" aria-live="polite">
           <div className="text-center">
-            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
+            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" aria-hidden="true" />
             <p className="text-slate-600">Loading account information...</p>
           </div>
         </div>

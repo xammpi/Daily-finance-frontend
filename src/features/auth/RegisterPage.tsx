@@ -7,6 +7,7 @@ import {
 import { useAuth } from '@/hooks/useAuth'
 import { currenciesApi } from '@/api/currencies'
 
+import { logger } from '@/utils/logger'
 // --- Types ---
 interface RegisterFormData {
   username: string
@@ -29,7 +30,7 @@ interface Currency {
 interface CurrencySelectProps {
   currencies: Currency[]
   value: number | string
-  onChange: (id: number) => void
+  onChange: (_id: number) => void
   loading: boolean
 }
 
@@ -69,11 +70,13 @@ const CurrencySelect = ({ currencies, value, onChange, loading }: CurrencySelect
       {/* Trigger Button (Looks like an input) */}
       <button
         type="button"
+        id="currency-select"
         disabled={loading}
         onClick={() => setIsOpen(!isOpen)}
         className={`w-full flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-left transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/20 ${
           isOpen ? 'border-indigo-500 ring-2 ring-indigo-500/20' : ''
         } ${loading ? 'bg-slate-50 text-slate-400 cursor-not-allowed' : ''}`}
+        aria-label="Select currency"
       >
         <span className={`block truncate ${!selectedCurrency ? 'text-slate-400' : 'text-slate-900'}`}>
           {loading
@@ -83,7 +86,7 @@ const CurrencySelect = ({ currencies, value, onChange, loading }: CurrencySelect
               : "Select a currency"
           }
         </span>
-        <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
       </button>
 
       {/* Dropdown Menu */}
@@ -93,7 +96,7 @@ const CurrencySelect = ({ currencies, value, onChange, loading }: CurrencySelect
           {/* Search Input Sticky Header */}
           <div className="border-b border-slate-100 bg-slate-50/50 p-2">
             <div className="relative">
-              <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
+              <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" aria-hidden="true" />
               <input
                 type="text"
                 autoFocus
@@ -101,6 +104,7 @@ const CurrencySelect = ({ currencies, value, onChange, loading }: CurrencySelect
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search USD, Euro..."
                 className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-8 text-sm placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                aria-label="Search currencies by name or code"
               />
               {searchTerm && (
                 <button
@@ -183,12 +187,12 @@ export default function RegisterPage() {
         setCurrencyError(null)
       } catch (err) {
         setCurrencyError('Failed to load currencies')
-        console.error(err)
+        logger.error('Error occurred', err)
       } finally {
         setCurrenciesLoading(false)
       }
     }
-    fetchCurrencies()
+    void fetchCurrencies()
   }, [])
 
   // Auto-select USD logic
@@ -233,11 +237,11 @@ export default function RegisterPage() {
     }
 
     try {
-      const { confirmPassword, currencyId, ...apiData } = formData
+      const { confirmPassword: _confirmPassword, currencyId, ...apiData } = formData
       await register({ ...apiData, currencyId: Number(currencyId) })
       navigate('/dashboard')
     } catch (err) {
-      console.error("Registration failed", err)
+      logger.error("Registration failed", err)
     }
   }
 
@@ -304,7 +308,7 @@ export default function RegisterPage() {
 
             {/* Custom Currency Dropdown with Search */}
             <div>
-              <label className={labelClasses}>
+              <label htmlFor="currency-select" className={labelClasses}>
                 <Globe className="h-4 w-4" /> Currency
               </label>
               <CurrencySelect

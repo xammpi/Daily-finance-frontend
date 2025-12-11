@@ -6,7 +6,8 @@
 import { userApi } from '@/api/user'
 import type { Wallet, Currency } from '@/types'
 
-type BalanceUpdateCallback = (balance: number, currency: Currency, wallet: Wallet) => void
+import { logger } from '@/utils/logger'
+type BalanceUpdateCallback = (_balance: number, _currency: Currency, _wallet: Wallet) => void
 
 /**
  * Singleton class for managing user balance state
@@ -83,7 +84,7 @@ export class BalanceManager {
 
         return walletData
       } catch (error) {
-        console.error('Failed to initialize BalanceManager:', error)
+        logger.error('Failed to initialize BalanceManager', error)
         return null
       } finally {
         this.isInitializing = false
@@ -110,7 +111,7 @@ export class BalanceManager {
       // Notify all subscribers
       this.notifySubscribers()
     } catch (error) {
-      console.error('Failed to refresh BalanceManager:', error)
+      logger.error('Failed to refresh BalanceManager', error)
     }
   }
 
@@ -145,27 +146,6 @@ export class BalanceManager {
   }
 
   /**
-   * Get current balance
-   */
-  public getBalance(): number {
-    return this.balance
-  }
-
-  /**
-   * Get current currency
-   */
-  public getCurrency(): Currency {
-    return this.currency
-  }
-
-  /**
-   * Get full wallet data
-   */
-  public getWallet(): Wallet | null {
-    return this.wallet
-  }
-
-  /**
    * Check if balance is low (< 100)
    */
   public isLowBalance(): boolean {
@@ -184,36 +164,6 @@ export class BalanceManager {
    */
   public getFormattedBalance(): string {
     return `${this.currency.symbol}${this.balance.toFixed(2)}`
-  }
-
-  /**
-   * Update balance optimistically (before API confirmation)
-   * Use with caution - should be followed by refresh()
-   */
-  public updateBalanceOptimistic(delta: number): void {
-    this.balance += delta
-    if (this.wallet) {
-      this.wallet.amount = this.balance
-      this.notifySubscribers()
-    }
-  }
-
-  /**
-   * Reset manager (for logout)
-   */
-  public reset(): void {
-    this.balance = 0
-    this.currency = {
-      id: 1,
-      code: 'USD',
-      name: 'US Dollar',
-      symbol: '$',
-    }
-    this.wallet = null
-    this.subscribers.clear()
-    this.isInitialized = false
-    this.isInitializing = false
-    this.initializationPromise = null
   }
 }
 

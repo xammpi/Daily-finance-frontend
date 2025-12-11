@@ -28,7 +28,13 @@
       "Bash(find:*)",
       "Bash(for file in /Users/rekatun/WebstormProjects/Daily-finance-frontend/src/api/*.ts)",
       "Bash(timeout 10 npx tsc:*)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Bash(npm audit:*)",
+      "Bash(while read file)",
+      "Bash(do sed -i '' \"s/console\\.error(''''Failed to load data'''')/logger.error(''''Failed to load transaction data'''', err)/g\" \"$file\" sed -i '' 's/console\\.error(\"\"\"\"Failed to fetch profile:\"\"\"\", err)/logger.error(\"\"\"\"Failed to fetch profile\"\"\"\", err)/g' \"$file\" sed -i '' 's/console\\.error(\"\"\"\"Failed to update profile:\"\"\"\", err)/logger.error(\"\"\"\"Failed to update profile\"\"\"\", err)/g' \"$file\" sed -i '' 's/console\\.error(\"\"\"\"Failed to change password:\"\"\"\", err)/logger.error(\"\"\"\"Failed to change password\"\"\"\", err)/g' \"$file\" sed -i '' \"s/console\\.error(err)/logger.error(''''Error occurred'''', err)/g\" \"$file\" sed -i '' 's/console\\.error(\"\"\"\"Failed to fetch dashboard data:\"\"\"\", error)/logger.error(\"\"\"\"Failed to fetch dashboard data\"\"\"\", error)/g' \"$file\" sed -i '' \"s/console\\.error(''''Failed to delete transaction:'''', err)/logger.error(''''Failed to delete transaction'''', err)/g\" \"$file\" sed -i '' \"s/console\\.error(''''Failed to fetch categories:'''', err)/logger.error(''''Failed to fetch categories'''', err)/g\" \"$file\" sed -i '' \"s/console\\.error(''''Failed to delete category:'''', err)/logger.error(''''Failed to delete category'''', err)/g\" \"$file\" sed -i '' 's/console\\.error(\"\"\"\"Registration failed\"\"\"\", err)/logger.error(\"\"\"\"Registration failed\"\"\"\", err)/g' \"$file\" sed -i '' \"s/console\\.error(''''Failed to initialize balance:'''', error)/logger.error(''''Failed to initialize balance'''', error)/g\" \"$file\" sed -i '' \"s/console\\.error(''''Failed to initialize BalanceManager:'''', error)/logger.error(''''Failed to initialize BalanceManager'''', error)/g\" \"$file\" sed -i '' \"s/console\\.error(''''Failed to refresh BalanceManager:'''', error)/logger.error(''''Failed to refresh BalanceManager'''', error)/g\" \"$file\" done)",
+      "Bash(npm outdated:*)",
+      "Bash(npm update:*)",
+      "Bash(kill:*)"
     ],
     "deny": [],
     "ask": []

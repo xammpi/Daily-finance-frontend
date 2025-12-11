@@ -1,16 +1,11 @@
 import apiClient from './client'
-import type { User, Wallet, DepositRequest, WithdrawRequest, BalanceUpdateRequest, CurrencyUpdateRequest } from '@/types'
-
-export interface UpdateProfileRequest {
-  firstName: string
-  lastName: string
-  email: string
-}
-
-export interface ChangePasswordRequest {
-  currentPassword: string
-  newPassword: string
-}
+import type {
+  User,
+  Wallet,
+  CurrencyUpdateRequest,
+  UpdateProfileRequest,
+  ChangePasswordRequest
+} from '@/types'
 
 export const userApi = {
   /**
@@ -41,30 +36,6 @@ export const userApi = {
       lastTransactionDate: data.lastTransactionDate,
       lowBalanceWarning: data.lowBalanceWarning || false,
     }
-  },
-
-  /**
-   * Deposit money into wallet
-   * @param data DepositRequest with amount
-   */
-  async deposit(data: DepositRequest): Promise<void> {
-    await apiClient.post('/user/deposit', data)
-  },
-
-  /**
-   * Withdraw money from wallet
-   * @param data WithdrawRequest with amount
-   */
-  async withdraw(data: WithdrawRequest): Promise<void> {
-    await apiClient.post('/user/withdraw', data)
-  },
-
-  /**
-   * Update wallet balance (set to specific amount)
-   * @param data BalanceUpdateRequest with amount
-   */
-  async updateBalance(data: BalanceUpdateRequest): Promise<void> {
-    await apiClient.put('/user/balance', data)
   },
 
   /**

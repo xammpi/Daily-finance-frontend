@@ -23,6 +23,10 @@ export class CriteriaBuilder {
 
   /**
    * Add a custom criterion
+   * @param field - The field name to filter on
+   * @param operation - The search operation to perform
+   * @param value - The value to compare against
+   * @param valueTo - Optional second value (for BETWEEN operations)
    */
   add(field: string, operation: SearchOperation, value: string | number | boolean, valueTo?: string | number): this {
     this.criteria.push({
@@ -123,6 +127,7 @@ export class CriteriaBuilder {
 
   /**
    * Add IN criterion (field IN (value1, value2, ...))
+   * @param field - The field name to filter on
    * @param values - Array of values or comma-separated string
    */
   in(field: string, values: (string | number)[] | string): this {
@@ -132,6 +137,7 @@ export class CriteriaBuilder {
 
   /**
    * Add NOT_IN criterion (field NOT IN (value1, value2, ...))
+   * @param field - The field name to filter on
    * @param values - Array of values or comma-separated string
    */
   notIn(field: string, values: (string | number)[] | string): this {

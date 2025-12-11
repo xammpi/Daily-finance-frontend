@@ -22,6 +22,9 @@ export default function Layout({ children, onAddTransaction }: LayoutProps) {
   const { user, logout } = useAuth()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
+  // ID for main content - used by skip link for accessibility
+  const MAIN_CONTENT_ID = 'main-content'
+
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Wallet', href: '/wallet', icon: Wallet },
@@ -37,12 +40,21 @@ export default function Layout({ children, onAddTransaction }: LayoutProps) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+      {/* Skip Link for Keyboard Navigation */}
+      <a
+        href={`#${MAIN_CONTENT_ID}`}
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded-xl focus:bg-gradient-to-r focus:from-indigo-500 focus:to-purple-600 focus:px-4 focus:py-3 focus:text-sm focus:font-medium focus:text-white focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-white/50"
+      >
+        Skip to main content
+      </a>
+
       {/* Mobile Menu Button */}
       <button
         onClick={() => setIsMobileMenuOpen(true)}
         className="fixed left-4 top-4 z-50 flex h-12 w-12 items-center justify-center rounded-xl bg-white text-slate-700 shadow-lg transition-all hover:bg-slate-50 md:hidden"
+        aria-label="Open navigation menu"
       >
-        <Menu className="h-6 w-6" />
+        <Menu className="h-6 w-6" aria-hidden="true" />
       </button>
 
       {/* Mobile Backdrop */}
@@ -73,8 +85,9 @@ export default function Layout({ children, onAddTransaction }: LayoutProps) {
             <button
               onClick={() => setIsMobileMenuOpen(false)}
               className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 md:hidden"
+              aria-label="Close navigation menu"
             >
-              <X className="h-5 w-5" />
+              <X className="h-5 w-5" aria-hidden="true" />
             </button>
           </div>
 
@@ -130,7 +143,7 @@ export default function Layout({ children, onAddTransaction }: LayoutProps) {
 
       {/* Main Content */}
       <div className="md:pl-64">
-        <main className="min-h-screen p-4 pt-20 md:p-8 md:pt-8">{children}</main>
+        <main id={MAIN_CONTENT_ID} className="min-h-screen p-4 pt-20 md:p-8 md:pt-8">{children}</main>
       </div>
 
       {/* Floating Action Button - Only show if onAddTransaction is provided */}
@@ -138,9 +151,10 @@ export default function Layout({ children, onAddTransaction }: LayoutProps) {
         <button
           onClick={onAddTransaction}
           className="fixed bottom-4 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-2xl transition-transform hover:scale-110 hover:shadow-indigo-500/50 md:bottom-8 md:right-8"
+          aria-label="Add new transaction"
           title="Add Transaction"
         >
-          <Plus className="h-6 w-6" />
+          <Plus className="h-6 w-6" aria-hidden="true" />
         </button>
       )}
     </div>

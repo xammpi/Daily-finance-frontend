@@ -15,7 +15,7 @@ export default function LoginPage() {
     try {
       await login({ username, password })
       navigate('/dashboard')
-    } catch (err) {
+    } catch {
       // Error is handled by the store
     }
   }
@@ -40,8 +40,13 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
-              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-red-100">
+            <div
+              className="mb-6 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700"
+              role="alert"
+              aria-live="assertive"
+              aria-atomic="true"
+            >
+              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-red-100" aria-hidden="true">
                 <span className="text-xs font-bold">!</span>
               </div>
               <p className="text-sm font-medium">{error}</p>

@@ -11,8 +11,8 @@ export interface Toast {
 
 interface ToastStore {
   toasts: Toast[]
-  addToast: (toast: Omit<Toast, 'id'>) => void
-  removeToast: (id: string) => void
+  addToast: (_toast: Omit<Toast, 'id'>) => void
+  removeToast: (_id: string) => void
 }
 
 export const useToastStore = create<ToastStore>((set) => ({

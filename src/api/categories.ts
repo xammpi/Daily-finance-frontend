@@ -1,6 +1,6 @@
 import apiClient from './client'
 import type { SearchRequest, PaginatedResponse } from '@/types'
-import { Category, CategoryRequest } from '@/types/category.ts'
+import { Category, CategoryRequest } from '@/types'
 
 export const categoriesApi = {
   /**

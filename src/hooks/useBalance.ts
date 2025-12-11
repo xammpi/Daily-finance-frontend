@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react'
 import { balanceManager } from '@/utils/BalanceManager'
 import type { Wallet, Currency } from '@/types'
 
+import { logger } from '@/utils/logger'
 interface UseBalanceReturn {
   balance: number
   currency: Currency
@@ -15,7 +16,7 @@ interface UseBalanceReturn {
   isLoading: boolean
   refresh: () => Promise<void>
   getFormattedBalance: () => string
-  hasSufficientBalance: (amount: number) => boolean
+  hasSufficientBalance: (_amount: number) => boolean
 }
 
 /**
@@ -52,23 +53,21 @@ export function useBalance(): UseBalanceReturn {
       try {
         const walletData = await balanceManager.initialize()
         if (walletData) {
-          console.log('Balance initialized:', walletData)
           setBalance(walletData.amount)
           setCurrency(walletData.currency)
           setWallet(walletData)
         }
       } catch (error) {
-        console.error('Failed to initialize balance:', error)
+        logger.error('Failed to initialize balance', error)
       } finally {
         setIsLoading(false)
       }
     }
 
-    initialize()
+    void initialize()
 
     // Subscribe to balance updates
     const unsubscribe = balanceManager.subscribe((newBalance, newCurrency, newWallet) => {
-      console.log('Balance updated via subscription:', newBalance, newWallet)
       setBalance(newBalance)
       setCurrency(newCurrency)
       setWallet(newWallet)
