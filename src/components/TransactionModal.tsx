@@ -12,6 +12,7 @@ import { sanitizeString, validateAmount, validateDescription } from '@/utils/val
 import { ModalErrorBoundary } from './ModalErrorBoundary'
 import { useModalBehavior } from '@/hooks/useModalBehavior'
 import { logger } from '@/utils/logger'
+import { balanceManager } from '@/utils/BalanceManager'
 interface TransactionModalProps {
   isOpen: boolean
   onClose: () => void
@@ -210,6 +211,10 @@ export default function TransactionModal({ isOpen, onClose, onSuccess, transacti
         await transactionApi.create(transactionExpenseData)
         toast.success('Transaction created successfully')
       }
+
+      // Refresh balance to update sidebar
+      await balanceManager.refresh()
+
       onSuccess()
       handleClose()
     } catch (err) {

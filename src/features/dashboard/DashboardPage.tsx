@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   Wallet,
   TrendingDown,
@@ -10,11 +10,14 @@ import {
   Receipt,
   AlertCircle,
   Edit2,
-  Trash2
+  Trash2,
+  BarChart3,
+  PieChart as PieChartIcon
 } from 'lucide-react'
 import { transactionApi } from '@/api/transaction.ts'
 import { useBalance } from '@/hooks/useBalance'
 import { useDelayedLoading } from '@/hooks/useDelayedLoading'
+import { useCategoryStatistics } from '@/hooks'
 import Layout from '@/components/Layout'
 import TransactionModal from '@/components/TransactionModal.tsx'
 import ConfirmDialog from '@/components/ConfirmDialog'
@@ -24,8 +27,10 @@ import { Transaction } from '@/types'
 import { CategoryType } from '@/types'
 import { toast } from '@/lib/toast'
 import { logger } from '@/utils/logger'
+import { CategoryPieChart, TrendLineChart } from '@/components'
 
 export default function DashboardPage() {
+  const navigate = useNavigate()
   const { wallet, refresh: refreshBalance, isLoading: isBalanceLoading } = useBalance()
   const [expenses, setExpenses] = useState<Transaction[]>([])
   const [statistics, setStatistics] = useState<TransactionStatistics | null>(null)
@@ -34,6 +39,18 @@ export default function DashboardPage() {
   const [editingTransactionId, setEditingTransactionId] = useState<number | undefined>(undefined)
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; description: string } | null>(null)
+
+  // Statistics state
+  const [statsPeriod, setStatsPeriod] = useState<'MONTH' | 'YEAR'>('MONTH')
+
+  // Fetch category statistics
+  const {
+    categoryStats,
+    trends,
+    summary,
+    isLoading: isStatsLoading,
+    error: statsError
+  } = useCategoryStatistics(undefined, statsPeriod)
 
   const fetchDashboardData = useCallback(async () => {
     try {
@@ -264,6 +281,121 @@ export default function DashboardPage() {
             </div>
           </Link>
         </div>
+
+        {/* Statistics Section */}
+        {!isStatsLoading && categoryStats && summary && (
+          <div className="space-y-6">
+            {/* Period Toggle */}
+            <div className="flex justify-end">
+              <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1">
+                <button
+                  onClick={() => setStatsPeriod('MONTH')}
+                  className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                    statsPeriod === 'MONTH'
+                      ? 'bg-indigo-500 text-white'
+                      : 'text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  This Month
+                </button>
+                <button
+                  onClick={() => setStatsPeriod('YEAR')}
+                  className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                    statsPeriod === 'YEAR'
+                      ? 'bg-indigo-500 text-white'
+                      : 'text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  This Year
+                </button>
+              </div>
+            </div>
+
+            {/* Charts Section */}
+            <div className="grid gap-6 lg:grid-cols-2">
+              {/* Category Pie Chart */}
+              <div className="rounded-2xl bg-white p-6 shadow-xl">
+                <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-slate-900">
+                  <PieChartIcon className="h-5 w-5 text-indigo-600" />
+                  Category Distribution
+                </h3>
+                <CategoryPieChart
+                  data={categoryStats.categories}
+                  currencySymbol={categoryStats.currency.symbol}
+                />
+                <p className="mt-4 text-center text-sm text-slate-600">
+                  Total: {categoryStats.currency.symbol}{categoryStats.totalAmount.toFixed(2)}
+                </p>
+              </div>
+
+              {/* Trends Line Chart */}
+              {trends && (
+                <div className="rounded-2xl bg-white p-6 shadow-xl">
+                  <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-slate-900">
+                    <TrendingUp className="h-5 w-5 text-indigo-600" />
+                    Spending Trends
+                  </h3>
+                  <TrendLineChart
+                    data={trends.dataPoints}
+                    currencySymbol={trends.currency.symbol}
+                    showIncome={true}
+                    showExpenses={true}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Top Categories List */}
+            <div className="rounded-2xl bg-white p-6 shadow-xl">
+              <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-slate-900">
+                <BarChart3 className="h-5 w-5 text-indigo-600" />
+                Top Spending Categories
+              </h3>
+              <div className="space-y-3">
+                {categoryStats.categories.slice(0, 5).map((category, index) => (
+                  <div
+                    key={category.categoryId}
+                    onClick={() => navigate(`/transactions?category=${category.categoryId}`)}
+                    className="flex items-center justify-between rounded-lg border border-slate-200 p-4 transition-all cursor-pointer hover:bg-indigo-50 hover:border-indigo-300 hover:shadow-md"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-600">
+                        {index + 1}
+                      </span>
+                      <div>
+                        <p className="font-semibold text-slate-900">{category.categoryName}</p>
+                        <p className="text-sm text-slate-600">
+                          {category.transactionCount} transactions
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-slate-900">
+                        {categoryStats.currency.symbol}{category.amount.toFixed(2)}
+                      </p>
+                      <p className="text-sm text-indigo-600">{category.percentage.toFixed(1)}%</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {isStatsLoading && (
+          <div className="flex items-center justify-center rounded-2xl bg-white p-12 shadow-xl">
+            <div className="text-center">
+              <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
+              <p className="text-slate-600">Loading statistics...</p>
+            </div>
+          </div>
+        )}
+
+        {statsError && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center">
+            <p className="font-medium text-red-700">{statsError}</p>
+          </div>
+        )}
 
         {/* Recent Expenses */}
         <div className="overflow-hidden rounded-2xl bg-white shadow-xl">

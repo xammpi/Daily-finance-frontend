@@ -27,3 +27,8 @@ export { extractErrorMessage, isNetworkError, isAuthError } from './errorHandler
 
 // Input Validation
 export { sanitizeString, validateAmount, validateDescription, validateCategoryName } from './validation'
+
+// Statistics
+export { calculateTransactionStats } from './transactionStats'
+export type { FilteredTransactionStats } from './transactionStats'
+export { statisticsCache } from './statisticsCache'

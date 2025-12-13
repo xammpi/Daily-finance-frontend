@@ -6,3 +6,5 @@
 export { ErrorBoundary } from './ErrorBoundary'
 export { ModalErrorBoundary } from './ModalErrorBoundary'
 export { ToastContainer } from './Toast'
+export { StatCard } from './StatCard'
+export * from './charts'

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   Receipt,
@@ -21,11 +21,14 @@ import Layout from '@/components/Layout'
 import TransactionModal from '@/components/TransactionModal.tsx'
 import ConfirmDialog from '@/components/ConfirmDialog'
 import Pagination from '@/components/Pagination'
-import { formatCurrency, formatDateForDisplay, getCurrentMonthRange, getCurrentWeekRange, getTodayDate, extractErrorMessage } from '@/utils'
+import { formatCurrency, formatDateForDisplay, getCurrentMonthRange, getCurrentWeekRange, getTodayDate, extractErrorMessage, calculateTransactionStats } from '@/utils'
+import { StatCard } from '@/components'
+import { useBalance } from '@/hooks'
 import { CriteriaBuilder } from '@/utils/CriteriaBuilder'
 import { useDelayedLoading, useDebounce } from '@/hooks'
 import type { PaginatedResponse } from '@/types'
 import { Transaction } from '@/types'
+import { balanceManager } from '@/utils/BalanceManager'
 import { Category, CategoryType } from '@/types'
 import { toast } from '@/lib/toast'
 import { SEARCH_DEBOUNCE_DELAY_MS, SEARCH_MIN_CHARACTERS, DEFAULT_PAGE_SIZE_TRANSACTIONS } from '@/constants'
@@ -48,6 +51,7 @@ export default function TransactionListPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const { wallet } = useBalance()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingTransactionId, setEditingTransactionId] = useState<number | undefined>(undefined)
   const [showFilters, setShowFilters] = useState(false)
@@ -242,6 +246,10 @@ export default function TransactionListPage() {
     try {
       await transactionApi.delete(deleteTarget.id)
       toast.success('Transaction deleted successfully')
+
+      // Refresh balance to update sidebar
+      await balanceManager.refresh()
+
       // Refresh to get accurate data from server
       await fetchTransactions()
     } catch (err) {
@@ -321,6 +329,11 @@ export default function TransactionListPage() {
   // Get transactions from paginated data (filtering is done by backend)
   const transactions = paginatedData?.content || []
 
+  // Calculate statistics from filtered transactions
+  const stats = useMemo(() => {
+    return calculateTransactionStats(transactions)
+  }, [transactions])
+
   // Group transactions by date
   const groupedTransactions = transactions.reduce((groups, transaction) => {
     const date = formatDateForDisplay(transaction.date)
@@ -392,6 +405,43 @@ export default function TransactionListPage() {
             </div>
           </div>
         </div>
+
+        {/* Statistics Cards */}
+        {(transactions.length > 0 || hasActiveFilters) && (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              title="Total"
+              value={formatCurrency(stats.totalAmount, wallet?.currency?.code || 'USD')}
+              subtitle={`${stats.transactionCount} transactions`}
+              icon={Receipt}
+              gradient="from-indigo-500 to-purple-600"
+            />
+
+            <StatCard
+              title="Income"
+              value={formatCurrency(stats.totalIncome, wallet?.currency?.code || 'USD')}
+              subtitle={`${stats.incomeCount} transactions`}
+              icon={TrendingUp}
+              gradient="from-emerald-500 to-teal-600"
+            />
+
+            <StatCard
+              title="Expenses"
+              value={formatCurrency(stats.totalExpenses, wallet?.currency?.code || 'USD')}
+              subtitle={`${stats.expenseCount} transactions`}
+              icon={TrendingDown}
+              gradient="from-red-500 to-orange-600"
+            />
+
+            <StatCard
+              title="Net Amount"
+              value={formatCurrency(stats.netAmount, wallet?.currency?.code || 'USD')}
+              subtitle={`Avg: ${formatCurrency(stats.averageAmount, wallet?.currency?.code || 'USD')}`}
+              icon={DollarSign}
+              gradient={stats.netAmount >= 0 ? 'from-emerald-500 to-teal-600' : 'from-red-500 to-orange-600'}
+            />
+          </div>
+        )}
 
         {/* Search and Filter Button */}
         <div className="space-y-4">

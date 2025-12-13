@@ -83,5 +83,6 @@ export function useModalBehavior({
       document.removeEventListener('keydown', handleEscape)
       document.removeEventListener('keydown', handleTabKey)
     }
-  }, [isOpen, onClose, modalRef, firstInputRef])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen])
 }
